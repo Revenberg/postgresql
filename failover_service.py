@@ -5,6 +5,7 @@ Provides API endpoints to perform failover operations between nodes
 """
 
 from flask import Flask, jsonify, request
+from flask_cors import CORS
 import subprocess
 import os
 import time
@@ -13,6 +14,15 @@ from psycopg2.extras import RealDictCursor
 import sys
 
 app = Flask(__name__)
+
+# Enable CORS for all routes
+CORS(app, resources={
+    r"/api/*": {
+        "origins": "*",
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type"]
+    }
+})
 
 # Global request timing
 _request_start_time = None

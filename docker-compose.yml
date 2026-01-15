@@ -1,25 +1,27 @@
 services:
-  # PostgreSQL Primary (Master)
+  # PostgreSQL Node 1 (Standby - can be promoted to primary via GUI)
   postgres-node1:
     build:
       context: .
-      dockerfile: Dockerfile.primary
+      dockerfile: Dockerfile.replica
     container_name: postgres-node1
     environment:
-      POSTGRES_DB: testdb
       POSTGRES_USER: testadmin
       POSTGRES_PASSWORD: securepwd123
-      POSTGRES_INITDB_ARGS: "-c max_wal_senders=10 -c max_replication_slots=10 -c wal_level=replica -c hot_standby=on -A md5"
-      PGDATA: /var/lib/postgresql/data/pgdata
     ports:
       - "5432:5432"
     volumes:
-      - postgres_primary_data:/var/lib/postgresql/data
+      - postgres_node1_data:/var/lib/postgresql
     networks:
       app-network:
         ipv4_address: 172.18.0.2
+    command: >
+      bash -c "
+      [ ! -f /var/lib/postgresql/standby.signal ] && touch /var/lib/postgresql/standby.signal;
+      exec docker-entrypoint.sh postgres
+      "
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U testadmin -d testdb"]
+      test: ["CMD-SHELL", "pg_isready -U testadmin -d postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -33,26 +35,18 @@ services:
       dockerfile: Dockerfile.replica
     container_name: postgres-node2
     environment:
-      PGDATA: /var/lib/postgresql/data/pgdata
       POSTGRES_USER: testadmin
       POSTGRES_PASSWORD: securepwd123
-      POSTGRES_DB: ""
-      POSTGRES_INITDB_ARGS: ""
     ports:
       - "5435:5432"
     volumes:
-      - postgres_node2_data:/var/lib/postgresql/data
-    depends_on:
-      postgres-node1:
-        condition: service_healthy
+      - postgres_node2_data:/var/lib/postgresql
     networks:
       app-network:
         ipv4_address: 172.18.0.3
     command: >
       bash -c "
-      rm -rf /var/lib/postgresql/data/pgdata/* &&
-      PGPASSWORD=securepwd123 pg_basebackup -h postgres-node1 -U testadmin -D /var/lib/postgresql/data/pgdata -P -R &&
-      touch /var/lib/postgresql/data/pgdata/standby.signal &&
+      [ ! -f /var/lib/postgresql/standby.signal ] && touch /var/lib/postgresql/standby.signal;
       exec docker-entrypoint.sh postgres
       "
     healthcheck:
@@ -63,6 +57,35 @@ services:
     stop_grace_period: 30s
     restart: always
 
+  # PostgreSQL Node 3 (Standby)
+  postgres-node3:
+    build:
+      context: .
+      dockerfile: Dockerfile.replica
+    container_name: postgres-node3
+    environment:
+      POSTGRES_USER: testadmin
+      POSTGRES_PASSWORD: securepwd123
+    ports:
+      - "5436:5432"
+    volumes:
+      - postgres_node3_data:/var/lib/postgresql
+    networks:
+      app-network:
+        ipv4_address: 172.18.0.6
+    command: >
+      bash -c "
+      [ ! -f /var/lib/postgresql/standby.signal ] && touch /var/lib/postgresql/standby.signal;
+      exec docker-entrypoint.sh postgres
+      "
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U testadmin -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+    stop_grace_period: 30s
+
   # PostgreSQL Replica 1 (Standby)
   postgres-replica-1:
     build:
@@ -70,24 +93,18 @@ services:
       dockerfile: Dockerfile.replica
     container_name: postgres-replica-1
     environment:
-      PGDATA: /var/lib/postgresql/data/pgdata
       POSTGRES_USER: testadmin
       POSTGRES_PASSWORD: securepwd123
     ports:
       - "5433:5432"
     volumes:
-      - postgres_replica_1_data:/var/lib/postgresql/data
-    depends_on:
-      postgres-node1:
-        condition: service_healthy
+      - postgres_replica_1_data:/var/lib/postgresql
     networks:
       app-network:
         ipv4_address: 172.18.0.4
     command: >
       bash -c "
-      rm -rf /var/lib/postgresql/data/pgdata/* &&
-      PGPASSWORD=securepwd123 pg_basebackup -h postgres-node1 -U testadmin -D /var/lib/postgresql/data/pgdata -P -R &&
-      touch /var/lib/postgresql/data/pgdata/standby.signal &&
+      [ ! -f /var/lib/postgresql/standby.signal ] && touch /var/lib/postgresql/standby.signal;
       exec docker-entrypoint.sh postgres
       "
     healthcheck:
@@ -105,59 +122,18 @@ services:
       dockerfile: Dockerfile.replica
     container_name: postgres-replica-2
     environment:
-      PGDATA: /var/lib/postgresql/data/pgdata
       POSTGRES_USER: testadmin
       POSTGRES_PASSWORD: securepwd123
     ports:
       - "5434:5432"
     volumes:
-      - postgres_replica_2_data:/var/lib/postgresql/data
-    depends_on:
-      postgres-node1:
-        condition: service_healthy
+      - postgres_replica_2_data:/var/lib/postgresql
     networks:
       app-network:
         ipv4_address: 172.18.0.5
     command: >
       bash -c "
-      rm -rf /var/lib/postgresql/data/pgdata/* &&
-      PGPASSWORD=securepwd123 pg_basebackup -h postgres-node1 -U testadmin -D /var/lib/postgresql/data/pgdata -P -R &&
-      touch /var/lib/postgresql/data/pgdata/standby.signal &&
-      exec docker-entrypoint.sh postgres
-      "
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U testadmin -d postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: always
-    stop_grace_period: 30s
-
-  # PostgreSQL Node 3 (Standby)
-  postgres-node3:
-    build:
-      context: .
-      dockerfile: Dockerfile.replica
-    container_name: postgres-node3
-    environment:
-      PGDATA: /var/lib/postgresql/data/pgdata
-      POSTGRES_USER: testadmin
-      POSTGRES_PASSWORD: securepwd123
-    ports:
-      - "5436:5432"
-    volumes:
-      - postgres_node3_data:/var/lib/postgresql/data
-    depends_on:
-      postgres-node1:
-        condition: service_healthy
-    networks:
-      app-network:
-        ipv4_address: 172.18.0.6
-    command: >
-      bash -c "
-      rm -rf /var/lib/postgresql/data/pgdata/* &&
-      PGPASSWORD=securepwd123 pg_basebackup -h postgres-node1 -U testadmin -D /var/lib/postgresql/data/pgdata -P -R &&
-      touch /var/lib/postgresql/data/pgdata/standby.signal &&
+      [ ! -f /var/lib/postgresql/standby.signal ] && touch /var/lib/postgresql/standby.signal;
       exec docker-entrypoint.sh postgres
       "
     healthcheck:
@@ -182,8 +158,6 @@ services:
     ports:
       - "5000:5000"
     depends_on:
-      postgres-node1:
-        condition: service_healthy
       failover-service:
         condition: service_healthy
     restart: always
@@ -198,9 +172,6 @@ services:
     container_name: failover-service
     ports:
       - "5001:5001"
-    depends_on:
-      postgres-node1:
-        condition: service_healthy
     networks:
       app-network:
         ipv4_address: 172.18.0.11
@@ -220,9 +191,6 @@ services:
       DB_USER: testadmin
       DB_PASSWORD: securepwd123
       DB_NAME: testdb
-    depends_on:
-      postgres-node1:
-        condition: service_healthy
     networks:
       - app-network
     profiles:
@@ -241,9 +209,6 @@ services:
       DB_USER: testadmin
       DB_PASSWORD: securepwd123
       DB_NAME: testdb
-    depends_on:
-      postgres-node1:
-        condition: service_healthy
     networks:
       - app-network
     profiles:
@@ -262,9 +227,6 @@ services:
       DB_USER: testadmin
       DB_PASSWORD: securepwd123
       DB_NAME: testdb
-    depends_on:
-      postgres-node3:
-        condition: service_healthy
     networks:
       - app-network
     profiles:
@@ -283,9 +245,6 @@ services:
       DB_USER: testadmin
       DB_PASSWORD: securepwd123
       DB_NAME: testdb
-    depends_on:
-      postgres-node1:
-        condition: service_healthy
     networks:
       - app-network
     profiles:
@@ -293,9 +252,9 @@ services:
     restart: "no"
       
 volumes:
-  postgres_primary_data:
   postgres_replica_1_data:
   postgres_replica_2_data:
+  postgres_node1_data:
   postgres_node2_data:
   postgres_node3_data:
   

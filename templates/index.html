@@ -779,88 +779,10 @@
         <!-- Node Status Dashboard -->
         <div class="nodes-dashboard">
             <h2>🖥️ Cluster Node Status</h2>
-            <div class="nodes-grid">
-                {% if replica_info %}
-                {% for replica in replica_info %}
-                <div class="node-card {% if 'node1' in replica.name %}primary{% else %}standby{% endif %}">
-                    <div class="node-header">
-                        <span class="node-name">
-                            {% if 'node1' in replica.name %}📍 node1 (Primary)
-                            {% elif 'node2' in replica.name %}🔄 node2 (Standby)
-                            {% else %}🔄 node3 (Standby)
-                            {% endif %}
-                        </span>
-                        {% if replica.status == 'connected' %}
-                        <span class="node-status-badge connected">✓ Connected</span>
-                        {% else %}
-                        <span class="node-status-badge disconnected">✗ {{ replica.status }}</span>
-                        {% endif %}
-                    </div>
-                    <div class="node-info">
-                        <div class="node-info-row">
-                            <span class="node-info-label">Status:</span>
-                            <span class="node-info-value">
-                                {% if 'node1' in replica.name %}
-                                <strong style="color: #4CAF50;">PRIMARY</strong>
-                                {% else %}
-                                <strong style="color: #2196F3;">STANDBY</strong>
-                                {% endif %}
-                            </span>
-                        </div>
-                        <div class="node-info-row">
-                            <span class="node-info-label">Port:</span>
-                            <span class="node-info-value">
-                                <span class="node-port">
-                                {% if 'node1' in replica.name %}5432
-                                {% elif 'node2' in replica.name %}5435
-                                {% else %}5436
-                                {% endif %}
-                                </span>
-                            </span>
-                        </div>
-                        {% if replica.status == 'connected' %}
-                        <div class="node-info-row">
-                            <span class="node-info-label">Version:</span>
-                            <span class="node-info-value">PostgreSQL {{ replica.version }}</span>
-                        </div>
-                        <div class="node-info-row">
-                            <span class="node-info-label">Time:</span>
-                            <span class="node-info-value" style="font-size: 12px;">{{ replica.current_time }}</span>
-                        </div>
-                        {% endif %}
-                    </div>
-                    {% if replica.status == 'connected' %}
-                    <div class="node-row-counts">
-                        <strong>Table Row Counts:</strong><br>
-                        <div class="node-row-counts-item">
-                            👥 Users: <strong>{{ replica.row_counts.users }}</strong>
-                        </div>
-                        <div class="node-row-counts-item">
-                            🔗 Nodes: <strong>{{ replica.row_counts.nodes }}</strong>
-                        </div>
-                        <div class="node-row-counts-item">
-                            💬 Messages: <strong>{{ replica.row_counts.messages }}</strong>
-                        </div>
-                    </div>
-                    {% endif %}
-                </div>
-                {% endfor %}
-                {% endif %}
+            <div class="nodes-grid" id="nodesGrid">
+                <!-- Dynamically populated by JavaScript -->
+                <p style="color: #999;">Loading node status...</p>
             </div>
-            
-            <!-- Replication Flow -->
-            {% if replica_info %}
-            <div class="replication-flow">
-                <h3>🔗 Replication Topology</h3>
-                <div class="flow-diagram">
-                    <div class="flow-node primary">node1 (PRIMARY)</div>
-                    <div class="flow-arrow">→</div>
-                    <div class="flow-node">node2</div>
-                    <div class="flow-arrow">→</div>
-                    <div class="flow-node">node3</div>
-                </div>
-            </div>
-            {% endif %}
         </div>
 
         <!-- Failover Controls Section -->
@@ -876,6 +798,9 @@
                 </button>
                 <button class="promote-btn node3" id="promoteNode3Btn" onclick="promoteNode('node3')">
                     <span id="node3BtnIcon">🚀</span> Promote node3
+                </button>
+                <button class="promote-btn" id="demoteAllBtn" onclick="demoteAll()" style="background: #9C27B0; color: white;">
+                    <span>⬇️</span> Demote All to Standby
                 </button>
             </div>
 
@@ -1194,6 +1119,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             restoreRefreshSettings();
             setupRefreshListener();
+            populateNodeStatus();
             updateNodeStatus();
             // Initial update
             setTimeout(updateNodeStatus, 1000);
@@ -1254,6 +1180,83 @@
             }
         }
 
+        // Populate node status from failover service
+        async function populateNodeStatus() {
+            try {
+                const response = await fetch(`${FAILOVER_SERVICE_URL}/api/failover/status`);
+                if (!response.ok) {
+                    console.warn('Failover service not available');
+                    return;
+                }
+
+                const data = await response.json();
+                const nodesGrid = document.getElementById('nodesGrid');
+                nodesGrid.innerHTML = '';
+
+                const nodeConfig = {
+                    'node1': { port: 5432, icon: '📍' },
+                    'node2': { port: 5435, icon: '🔄' },
+                    'node3': { port: 5436, icon: '🔄' }
+                };
+
+                for (const [nodeName, nodeData] of Object.entries(data.nodes)) {
+                    const isPrimary = nodeName === data.current_primary;
+                    const config = nodeConfig[nodeName];
+                    const statusClass = isPrimary ? 'primary' : 'standby';
+                    const statusText = isPrimary ? 'PRIMARY' : 'STANDBY';
+                    const statusColor = isPrimary ? '#4CAF50' : '#2196F3';
+                    const isConnected = nodeData.status === 'connected';
+                    const badgeText = isConnected ? '✓ Connected' : `✗ ${nodeData.status}`;
+                    const badgeClass = isConnected ? 'connected' : 'disconnected';
+
+                    let html = `
+                        <div class="node-card ${statusClass}">
+                            <div class="node-header">
+                                <span class="node-name">${config.icon} ${nodeName} (${statusText})</span>
+                                <span class="node-status-badge ${badgeClass}">${badgeText}</span>
+                            </div>
+                            <div class="node-info">
+                                <div class="node-info-row">
+                                    <span class="node-info-label">Status:</span>
+                                    <span class="node-info-value">
+                                        <strong style="color: ${statusColor};">${statusText}</strong>
+                                    </span>
+                                </div>
+                                <div class="node-info-row">
+                                    <span class="node-info-label">Port:</span>
+                                    <span class="node-info-value">
+                                        <span class="node-port">${config.port}</span>
+                                    </span>
+                                </div>
+                    `;
+
+                    if (isConnected) {
+                        html += `
+                                <div class="node-info-row">
+                                    <span class="node-info-label">Version:</span>
+                                    <span class="node-info-value">PostgreSQL ${nodeData.version || 'N/A'}</span>
+                                </div>
+                                <div class="node-info-row">
+                                    <span class="node-info-label">Time:</span>
+                                    <span class="node-info-value" style="font-size: 12px;">${new Date().toLocaleString()}</span>
+                                </div>
+                        `;
+                    }
+
+                    html += `
+                            </div>
+                        </div>
+                    `;
+
+                    nodesGrid.innerHTML += html;
+                }
+            } catch (error) {
+                console.warn('Could not populate node status:', error.message);
+                const nodesGrid = document.getElementById('nodesGrid');
+                nodesGrid.innerHTML = '<p style="color: #f44336;">Failed to load node status</p>';
+            }
+        }
+
         // Update node status
         async function updateNodeStatus() {
             try {
@@ -1308,6 +1311,54 @@
                     btn.title = `Click to promote ${node} to primary`;
                 }
             });
+        }
+
+        // Demote all nodes to standby
+        async function demoteAll() {
+            if (isFailoverInProgress) {
+                showStatus('A failover operation is already in progress', 'info');
+                return;
+            }
+
+            isFailoverInProgress = true;
+            showStatus('Starting demotion... Setting all nodes to standby', 'info');
+            
+            // Show loading state
+            const btn = document.getElementById('demoteAllBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span class="loading-spinner"></span> Demoting...';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch(`${FAILOVER_SERVICE_URL}/api/failover/demote-all`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    showStatus(`✓ Successfully demoted all nodes to STANDBY! Reloading page...`, 'success');
+                    
+                    // Wait a moment then reload
+                    setTimeout(() => {
+                        location.reload();
+                    }, 3000);
+                } else {
+                    showStatus(`✗ Demotion failed: ${data.error || 'Unknown error'}`, 'error');
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                    isFailoverInProgress = false;
+                }
+            } catch (error) {
+                showStatus(`✗ Error: ${error.message}. Make sure the failover service is running.`, 'error');
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                isFailoverInProgress = false;
+                console.error('Demotion error:', error);
+            }
         }
 
         // Promote node to primary
