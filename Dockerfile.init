@@ -1,0 +1,20 @@
+# PostgreSQL Database Initializer Dockerfile
+FROM postgres:latest
+
+WORKDIR /app
+
+# Install psycopg2-binary for Python utilities (if needed)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    postgresql-client \
+    bash \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy initialization script
+COPY init.sql /init.sql
+COPY init-database.sh /app/init-database.sh
+
+# Make script executable
+RUN chmod +x /app/init-database.sh
+
+# Run the initialization script
+ENTRYPOINT ["/app/init-database.sh"]

@@ -1,0 +1,15 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install psycopg2
+RUN pip install --no-cache-dir psycopg2-binary
+
+# Copy test data generator
+COPY test_data_generator.py .
+
+# Ensure unbuffered output for logs
+ENV PYTHONUNBUFFERED=1
+
+# Run the generator
+CMD ["python", "-u", "test_data_generator.py"]

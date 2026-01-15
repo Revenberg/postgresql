@@ -1,0 +1,19 @@
+# PostgreSQL Dockerfile - Primary Only
+FROM postgres:latest
+
+# Set environment variables
+ENV POSTGRES_DB=testdb \
+    POSTGRES_USER=testadmin \
+    POSTGRES_PASSWORD=securepwd123
+
+# Copy initialization script to the docker-entrypoint-initdb.d directory
+#COPY init.sql /docker-entrypoint-initdb.d/10-init.sql
+
+# Copy custom entrypoint that handles replication configuration
+COPY docker-entrypoint-primary.sh /usr/local/bin/docker-entrypoint-primary.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint-primary.sh
+
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint-primary.sh"]
+
+# Expose PostgreSQL port
+EXPOSE 5432

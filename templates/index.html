@@ -1,0 +1,1381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PostgreSQL Database Explorer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #666;
+            font-size: 14px;
+        }
+        
+        /* Node Dashboard Styles */
+        .nodes-dashboard {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+        
+        .nodes-dashboard h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 22px;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .nodes-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .node-card {
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .node-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+        }
+        
+        .node-card.primary {
+            border-color: #4CAF50;
+            background: #f0f8f4;
+        }
+        
+        .node-card.primary::before {
+            background: #4CAF50;
+        }
+        
+        .node-card.standby {
+            border-color: #2196F3;
+            background: #f0f7ff;
+        }
+        
+        .node-card.standby::before {
+            background: #2196F3;
+        }
+        
+        .node-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .node-name {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .node-status-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        
+        .node-status-badge.primary {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .node-status-badge.standby {
+            background: #2196F3;
+            color: white;
+        }
+        
+        .node-status-badge.disconnected {
+            background: #f44336;
+            color: white;
+        }
+        
+        .node-status-badge.connected {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .node-info {
+            font-size: 13px;
+        }
+        
+        .node-info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+        }
+        
+        .node-info-row:last-child {
+            border-bottom: none;
+        }
+        
+        .node-info-label {
+            font-weight: 600;
+            color: #555;
+            min-width: 100px;
+        }
+        
+        .node-info-value {
+            color: #333;
+            text-align: right;
+            flex: 1;
+            margin-left: 10px;
+        }
+        
+        .node-port {
+            font-family: monospace;
+            background: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+        
+        .node-row-counts {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-size: 12px;
+        }
+        
+        .node-row-counts-item {
+            display: inline-block;
+            margin-right: 15px;
+            margin-bottom: 5px;
+        }
+        
+        .node-row-counts-item strong {
+            color: #667eea;
+        }
+        
+        .replication-flow {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+        
+        .replication-flow h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+        
+        .replication-flow {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+        
+        .replication-flow h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+        
+        .flow-diagram {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .flow-node {
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 6px;
+            padding: 10px 15px;
+            font-weight: 600;
+            color: #667eea;
+            font-size: 14px;
+            min-width: 120px;
+            text-align: center;
+        }
+        
+        .flow-node.primary {
+            border-color: #4CAF50;
+            color: white;
+            background: #4CAF50;
+        }
+        
+        .flow-arrow {
+            font-size: 20px;
+            color: #667eea;
+        }
+
+        /* Failover Controls */
+        .failover-controls {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+
+        .failover-controls h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 16px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .promote-btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-height: 50px;
+        }
+
+        .promote-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .promote-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .promote-btn.node1 {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .promote-btn.node2 {
+            background: #2196F3;
+            color: white;
+        }
+
+        .promote-btn.node3 {
+            background: #FF9800;
+            color: white;
+        }
+
+        .promote-btn.active {
+            border: 3px solid #ffd700;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        }
+
+        .refresh-settings {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 20px;
+        }
+
+        .refresh-settings label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .refresh-options {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .refresh-option {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .refresh-option input[type="radio"] {
+            cursor: pointer;
+        }
+
+        .refresh-option label {
+            margin: 0;
+            cursor: pointer;
+            font-weight: 400;
+        }
+
+        .status-message {
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 15px;
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+
+        .status-message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            display: block;
+        }
+
+        .status-message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            display: block;
+        }
+
+        .status-message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+            display: block;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .databases-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .database-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .database-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15);
+        }
+        
+        .database-card h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 20px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        
+        .table-count {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            margin-bottom: 15px;
+        }
+        
+        .tables-list {
+            list-style: none;
+        }
+        
+        .tables-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+            color: #555;
+            font-size: 14px;
+        }
+        
+        .tables-list li:last-child {
+            border-bottom: none;
+        }
+        
+        .table-icon {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            background: #667eea;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .table-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .table-row:last-child {
+            border-bottom: none;
+        }
+        
+        .table-name {
+            display: flex;
+            align-items: center;
+            flex: 1;
+        }
+        
+        .row-count {
+            background: #f0f0f0;
+            color: #666;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            white-space: nowrap;
+            margin-left: 10px;
+        }
+        
+        footer {
+            text-align: center;
+            color: white;
+            padding: 20px;
+            font-size: 12px;
+        }
+        
+        .server-info {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+        
+        .server-info h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 18px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        
+        .info-label {
+            font-weight: bold;
+            color: #333;
+            width: 30%;
+        }
+        
+        .info-value {
+            color: #666;
+            word-break: break-word;
+        }
+        
+        .server-role {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+        
+        .server-role.primary {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .server-role.standby {
+            background: #2196F3;
+            color: white;
+        }
+        
+        .replication-stats {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+        
+        .replication-stats h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 18px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        
+        .replication-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        
+        .replication-table thead {
+            background: #f5f5f5;
+        }
+        
+        .replication-table th {
+            padding: 10px;
+            text-align: left;
+            font-weight: bold;
+            color: #333;
+            border-bottom: 2px solid #ddd;
+        }
+        
+        .replication-table td {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .replication-table tbody tr:hover {
+            background: #f9f9f9;
+        }
+        
+        .sync-async {
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        
+        .sync-async.async {
+            background: #FFF3CD;
+            color: #856404;
+        }
+        
+        .sync-async.sync {
+            background: #D4EDDA;
+            color: #155724;
+        }
+        
+        .no-replicas {
+            color: #999;
+            font-style: italic;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .row-counts-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .row-counts-table thead {
+            background: #667eea;
+            color: white;
+        }
+
+        .row-counts-table th {
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .row-counts-table td {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            text-align: center;
+        }
+
+        .row-counts-table tbody tr:hover {
+            background: #f8f9ff;
+        }
+
+        .row-counts-table .null-value {
+            color: #999;
+            font-style: italic;
+        }
+
+        .row-counts-table .server-name {
+            text-align: left;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .row-counts-table .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .row-counts-table .badge-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .row-counts-table .badge-replica {
+            background: #764ba2;
+            color: white;
+        }
+
+        .row-counts-table .badge-secondary {
+            background: #e67e22;
+            color: white;
+        }
+        
+        .replication-progress {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+        
+        .replication-progress h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 18px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        
+        .progress-container {
+            margin-bottom: 15px;
+        }
+        
+        .progress-label {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 24px;
+            background: #e0e0e0;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #45a049);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+            transition: width 0.3s ease;
+        }
+        
+        .progress-info {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 4px;
+            font-size: 13px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🗄️ PostgreSQL Database Explorer
+                {% if server_info %}
+                <span class="server-role {% if server_info.role == 'Primary' %}primary{% else %}standby{% endif %}">{{ server_info.role }}</span>
+                {% endif %}
+            </h1>
+            <p class="subtitle">Browse your databases, tables, and schemas</p>
+        </header>
+        
+        <!-- Node Status Dashboard -->
+        <div class="nodes-dashboard">
+            <h2>🖥️ Cluster Node Status</h2>
+            <div class="nodes-grid">
+                {% if replica_info %}
+                {% for replica in replica_info %}
+                <div class="node-card {% if 'node1' in replica.name %}primary{% else %}standby{% endif %}">
+                    <div class="node-header">
+                        <span class="node-name">
+                            {% if 'node1' in replica.name %}📍 node1 (Primary)
+                            {% elif 'node2' in replica.name %}🔄 node2 (Standby)
+                            {% else %}🔄 node3 (Standby)
+                            {% endif %}
+                        </span>
+                        {% if replica.status == 'connected' %}
+                        <span class="node-status-badge connected">✓ Connected</span>
+                        {% else %}
+                        <span class="node-status-badge disconnected">✗ {{ replica.status }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="node-info">
+                        <div class="node-info-row">
+                            <span class="node-info-label">Status:</span>
+                            <span class="node-info-value">
+                                {% if 'node1' in replica.name %}
+                                <strong style="color: #4CAF50;">PRIMARY</strong>
+                                {% else %}
+                                <strong style="color: #2196F3;">STANDBY</strong>
+                                {% endif %}
+                            </span>
+                        </div>
+                        <div class="node-info-row">
+                            <span class="node-info-label">Port:</span>
+                            <span class="node-info-value">
+                                <span class="node-port">
+                                {% if 'node1' in replica.name %}5432
+                                {% elif 'node2' in replica.name %}5435
+                                {% else %}5436
+                                {% endif %}
+                                </span>
+                            </span>
+                        </div>
+                        {% if replica.status == 'connected' %}
+                        <div class="node-info-row">
+                            <span class="node-info-label">Version:</span>
+                            <span class="node-info-value">PostgreSQL {{ replica.version }}</span>
+                        </div>
+                        <div class="node-info-row">
+                            <span class="node-info-label">Time:</span>
+                            <span class="node-info-value" style="font-size: 12px;">{{ replica.current_time }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% if replica.status == 'connected' %}
+                    <div class="node-row-counts">
+                        <strong>Table Row Counts:</strong><br>
+                        <div class="node-row-counts-item">
+                            👥 Users: <strong>{{ replica.row_counts.users }}</strong>
+                        </div>
+                        <div class="node-row-counts-item">
+                            🔗 Nodes: <strong>{{ replica.row_counts.nodes }}</strong>
+                        </div>
+                        <div class="node-row-counts-item">
+                            💬 Messages: <strong>{{ replica.row_counts.messages }}</strong>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+                {% endif %}
+            </div>
+            
+            <!-- Replication Flow -->
+            {% if replica_info %}
+            <div class="replication-flow">
+                <h3>🔗 Replication Topology</h3>
+                <div class="flow-diagram">
+                    <div class="flow-node primary">node1 (PRIMARY)</div>
+                    <div class="flow-arrow">→</div>
+                    <div class="flow-node">node2</div>
+                    <div class="flow-arrow">→</div>
+                    <div class="flow-node">node3</div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Failover Controls Section -->
+        <div class="failover-controls">
+            <h3>⚡ Failover Management</h3>
+            
+            <div class="controls-grid">
+                <button class="promote-btn node1" id="promoteNode1Btn" onclick="promoteNode('node1')">
+                    <span id="node1BtnIcon">🚀</span> Promote node1
+                </button>
+                <button class="promote-btn node2" id="promoteNode2Btn" onclick="promoteNode('node2')">
+                    <span id="node2BtnIcon">🚀</span> Promote node2
+                </button>
+                <button class="promote-btn node3" id="promoteNode3Btn" onclick="promoteNode('node3')">
+                    <span id="node3BtnIcon">🚀</span> Promote node3
+                </button>
+            </div>
+
+            <div id="failoverStatus" class="status-message"></div>
+
+            <div class="refresh-settings">
+                <label>🔄 Auto-Refresh Settings:</label>
+                <div class="refresh-options">
+                    <div class="refresh-option">
+                        <input type="radio" id="refreshNever" name="refreshInterval" value="0" checked>
+                        <label for="refreshNever">Never</label>
+                    </div>
+                    <div class="refresh-option">
+                        <input type="radio" id="refresh5s" name="refreshInterval" value="5000">
+                        <label for="refresh5s">5 seconds</label>
+                    </div>
+                    <div class="refresh-option">
+                        <input type="radio" id="refresh30s" name="refreshInterval" value="30000">
+                        <label for="refresh30s">30 seconds</label>
+                    </div>
+                    <div class="refresh-option">
+                        <input type="radio" id="refresh60s" name="refreshInterval" value="60000">
+                        <label for="refresh60s">60 seconds</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        {% if server_info %}
+        <div class="server-info">
+            <h2>📊 Server Information (Primary)</h2>
+            <div class="info-row">
+                <span class="info-label">Role:</span>
+                <span class="info-value">
+                    <strong>{{ server_info.role }}</strong> (Accepting writes)
+                </span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">PostgreSQL Version:</span>
+                <span class="info-value">{{ server_info.version }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Current Time:</span>
+                <span class="info-value">{{ server_info.current_time }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Row Counts:</span>
+                <span class="info-value">
+                    Users: <strong>{% if primary_row_counts.users is not none %}{{ primary_row_counts.users }}{% else %}<span class="null-value">NULL</span>{% endif %}</strong> | 
+                    Nodes: <strong>{% if primary_row_counts.nodes is not none %}{{ primary_row_counts.nodes }}{% else %}<span class="null-value">NULL</span>{% endif %}</strong> | 
+                    Messages: <strong>{% if primary_row_counts.messages is not none %}{{ primary_row_counts.messages }}{% else %}<span class="null-value">NULL</span>{% endif %}</strong>
+                </span>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Row Counts Comparison Table -->
+        <div class="server-info">
+            <h2>📊 Table Row Counts - All Servers</h2>
+            <table class="row-counts-table">
+                <thead>
+                    <tr>
+                        <th>Server</th>
+                        <th>Users</th>
+                        <th>Nodes</th>
+                        <th>Messages</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Primary Server -->
+                    <tr>
+                        <td class="server-name">
+                            <span class="badge badge-primary">PRIMARY</span>
+                            postgres-primary
+                        </td>
+                        <td><strong>{% if primary_row_counts.users is not none %}{{ primary_row_counts.users }}{% else %}<span class="null-value">NULL</span>{% endif %}</strong></td>
+                        <td><strong>{% if primary_row_counts.nodes is not none %}{{ primary_row_counts.nodes }}{% else %}<span class="null-value">NULL</span>{% endif %}</strong></td>
+                        <td><strong>{% if primary_row_counts.messages is not none %}{{ primary_row_counts.messages }}{% else %}<span class="null-value">NULL</span>{% endif %}</strong></td>
+                    </tr>
+                    
+                    <!-- Replica and Secondary Servers -->
+                    {% if replica_info %}
+                    {% for replica in replica_info %}
+                    <tr>
+                        <td class="server-name">
+                            {% if replica.server_role == 'Secondary' %}
+                                <span class="badge badge-secondary">SECONDARY</span>
+                            {% else %}
+                                <span class="badge badge-replica">REPLICA</span>
+                            {% endif %}
+                            {{ replica.name }}
+                        </td>
+                        <td>
+                            {% if replica.status == 'connected' %}
+                                <strong>{{ replica.row_counts.users }}</strong>
+                            {% else %}
+                                <span class="null-value">NULL</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if replica.status == 'connected' %}
+                                <strong>{{ replica.row_counts.nodes }}</strong>
+                            {% else %}
+                                <span class="null-value">NULL</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if replica.status == 'connected' %}
+                                <strong>{{ replica.row_counts.messages }}</strong>
+                            {% else %}
+                                <span class="null-value">NULL</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+                
+        <!-- Replica and Secondary Servers Info -->
+        {% for replica in replica_info %}
+        <div class="server-info">
+            {% if replica.server_role == 'Secondary' %}
+            <h2>🟠 Secondary Server Information ({{ replica.name }})</h2>
+            {% else %}
+            <h2>🔄 Replica Server Information ({{ replica.name }})</h2>
+            {% endif %}
+            {% if replica.status == 'connected' %}
+            <div class="info-row">
+                <span class="info-label">Role:</span>
+                <span class="info-value">
+                    {% if replica.server_role == 'Secondary' %}
+                        <strong>{{ replica.role }}</strong> (Alternate Primary - Read/Write)
+                    {% else %}
+                        <strong>{{ replica.role }}</strong> (Read-only)
+                    {% endif %}
+                </span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">PostgreSQL Version:</span>
+                <span class="info-value">{{ replica.version }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Current Time:</span>
+                <span class="info-value">{{ replica.current_time }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Status:</span>
+                <span class="info-value" style="color: #22c55e;">✓ Connected</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Row Counts:</span>
+                <span class="info-value">
+                    Users: <strong>{{ replica.row_counts.users }}</strong> | 
+                    Nodes: <strong>{{ replica.row_counts.nodes }}</strong> | 
+                    Messages: <strong>{{ replica.row_counts.messages }}</strong>
+                </span>
+            </div>
+            {% else %}
+            <div class="no-replicas">
+                ⚠️ {{ replica.name }} is {{ replica.status }}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+        
+        {% if replication_progress %}
+        <div class="replication-progress">
+            <h2>⏳ Replica Replication Progress</h2>
+            {% if replication_progress.replica_addr and replication_progress.replica_addr != 'N/A' and replication_progress.replica_addr != 'No replicas yet' %}
+            <div class="progress-container">
+                <div class="progress-label">
+                    <span>Replication Progress</span>
+                    <span>{{ replication_progress.progress }}%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: {{ replication_progress.progress }}%;">
+                        {% if replication_progress.progress > 10 %}{{ replication_progress.progress }}%{% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="progress-info">
+                <strong>Replica Address:</strong> {{ replication_progress.replica_addr }}<br>
+                <strong>State:</strong> {{ replication_progress.state }}<br>
+                <strong>Sync Mode:</strong> <span class="sync-async {% if replication_progress.sync_state == 'sync' %}sync{% else %}async{% endif %}">{{ replication_progress.sync_state }}</span><br>
+                {% if replication_progress.lag_bytes is defined and replication_progress.lag_bytes > 0 %}
+                <strong>Lag:</strong> {{ (replication_progress.lag_bytes / 1024 / 1024)|round(2) }} MB<br>
+                {% endif %}
+                <strong>Replay LSN:</strong> {{ replication_progress.replay_lsn }}
+            </div>
+            {% else %}
+            <div class="no-replicas">
+                ⏳ Waiting for replica connection... {{ replication_progress.replica_addr }}
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+        
+        {% if replication_stats %}
+        <div class="replication-stats">
+            <h2>🔄 Replication Statistics - All Nodes</h2>
+            {% if replication_stats|length > 0 %}
+            <table class="replication-table">
+                <thead>
+                    <tr>
+                        <th>Node</th>
+                        <th>Role</th>
+                        <th>Address</th>
+                        <th>State</th>
+                        <th>Sync Mode</th>
+                        <th>Write Lag</th>
+                        <th>Flush Lag</th>
+                        <th>Replay Lag</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for stat in replication_stats %}
+                    <tr>
+                        <td>
+                            <strong>
+                                {% if stat.node_id == 'node1' %}
+                                    👑 {{ stat.node_id }}
+                                {% elif stat.node_id == 'node2' %}
+                                    🔄 {{ stat.node_id }}
+                                {% elif stat.node_id == 'node3' %}
+                                    🔄 {{ stat.node_id }}
+                                {% else %}
+                                    {{ stat.node_id }}
+                                {% endif %}
+                            </strong>
+                        </td>
+                        <td>
+                            {% if stat.role == 'Primary' %}
+                            <span style="background: #4CAF50; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 600;">PRIMARY</span>
+                            {% elif stat.role == 'Standby' %}
+                            <span style="background: #2196F3; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 600;">STANDBY</span>
+                            {% else %}
+                            <span style="background: #999; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 600;">{{ stat.role }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ stat.client_addr }}</td>
+                        <td>
+                            {% if stat.status == 'connected' %}
+                                <span style="color: #4CAF50; font-weight: 600;">✓ {{ stat.state }}</span>
+                            {% elif stat.status == 'disconnected' %}
+                                <span style="color: #f44336; font-weight: 600;">✗ disconnected</span>
+                            {% else %}
+                                <span style="color: #ff9800; font-weight: 600;">{{ stat.state }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if stat.sync_state != 'N/A' %}
+                                <span class="sync-async {% if stat.sync_state == 'sync' %}sync{% else %}async{% endif %}">
+                                    {{ stat.sync_state|upper }}
+                                </span>
+                            {% else %}
+                                <span style="color: #999;">-</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ stat.write_lag or '-' }}</td>
+                        <td>{{ stat.flush_lag or '-' }}</td>
+                        <td>{{ stat.replay_lag or '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="no-replicas">No replication data available</p>
+            {% endif %}
+        </div>
+        {% endif %}
+        
+        <div class="databases-grid">
+            {% if databases %}
+                {% for db in databases %}
+                <div class="database-card" onclick="viewDatabase('{{ db.name }}')">
+                    <h2>{{ db.name }}</h2>
+                    <span class="table-count">{{ db.table_count }} table{% if db.table_count != 1 %}s{% endif %}</span>
+                    
+                    {% if db.tables %}
+                    <div class="tables-list">
+                        {% for table in db.tables %}
+                        <div class="table-row">
+                            <span class="table-name">
+                                <span class="table-icon"></span>{{ table.name }}
+                            </span>
+                            <span class="row-count">{{ table.row_count }} row{% if table.row_count != 1 %}s{% endif %}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="empty">No tables found</p>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            {% else %}
+            <p style="color: white; font-size: 18px;">Unable to connect to database or no databases found</p>
+            {% endif %}
+        </div>
+        
+        <footer>
+            <p>PostgreSQL Database Explorer | Connected to PostgreSQL Server</p>
+        </footer>
+    </div>
+    
+    <script>
+        // Global variables
+        let refreshInterval = null;
+        let isFailoverInProgress = false;
+        // Use relative URL that will work from browser on host machine
+        const FAILOVER_SERVICE_URL = 'http://' + window.location.hostname + ':5001';
+        const REFRESH_STORAGE_KEY = 'postgres_explorer_refresh_interval';
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            restoreRefreshSettings();
+            setupRefreshListener();
+            updateNodeStatus();
+            // Initial update
+            setTimeout(updateNodeStatus, 1000);
+        });
+
+        // Restore refresh settings from localStorage
+        function restoreRefreshSettings() {
+            const savedInterval = localStorage.getItem(REFRESH_STORAGE_KEY);
+            
+            if (savedInterval) {
+                // Set the radio button to the saved value
+                const radioBtn = document.querySelector(`input[name="refreshInterval"][value="${savedInterval}"]`);
+                if (radioBtn) {
+                    radioBtn.checked = true;
+                    
+                    // Start the refresh if not "0" (Never)
+                    const interval = parseInt(savedInterval);
+                    if (interval > 0) {
+                        startRefreshInterval(interval);
+                        console.log(`Restored auto-refresh: ${interval / 1000} seconds`);
+                    }
+                }
+            }
+        }
+
+        // Setup refresh interval listener
+        function setupRefreshListener() {
+            const radioButtons = document.querySelectorAll('input[name="refreshInterval"]');
+            radioButtons.forEach(radio => {
+                radio.addEventListener('change', function() {
+                    // Save the selected value to localStorage
+                    localStorage.setItem(REFRESH_STORAGE_KEY, this.value);
+                    
+                    clearRefreshInterval();
+                    const interval = parseInt(this.value);
+                    if (interval > 0) {
+                        startRefreshInterval(interval);
+                        console.log(`Auto-refresh enabled: ${interval / 1000} seconds`);
+                    } else {
+                        console.log('Auto-refresh disabled');
+                    }
+                });
+            });
+        }
+
+        // Start refresh interval
+        function startRefreshInterval(interval) {
+            refreshInterval = setInterval(() => {
+                location.reload();
+            }, interval);
+        }
+
+        // Clear refresh interval
+        function clearRefreshInterval() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+                refreshInterval = null;
+            }
+        }
+
+        // Update node status
+        async function updateNodeStatus() {
+            try {
+                const response = await fetch(`${FAILOVER_SERVICE_URL}/api/failover/status`);
+                if (!response.ok) {
+                    console.warn('Failover service not available');
+                    return;
+                }
+
+                const data = await response.json();
+                updateButtonStates(data);
+            } catch (error) {
+                console.warn('Could not fetch failover status:', error.message);
+            }
+        }
+
+        // Update button states based on node status
+        function updateButtonStates(data) {
+            const nodes = ['node1', 'node2', 'node3'];
+            
+            nodes.forEach(node => {
+                const btn = document.getElementById(`promote${node.charAt(0).toUpperCase() + node.slice(1)}Btn`);
+                const icon = document.getElementById(`${node}BtnIcon`);
+                
+                if (!btn) return;
+
+                const nodeData = data.nodes[node];
+                const isPrimary = node === data.current_primary;
+                const isConnected = nodeData && nodeData.status === 'connected';
+
+                // Update button state
+                btn.disabled = !isConnected || isPrimary || isFailoverInProgress;
+                
+                // Update styling
+                if (isPrimary) {
+                    btn.classList.add('active');
+                    icon.textContent = '👑';
+                } else {
+                    btn.classList.remove('active');
+                    icon.textContent = '🚀';
+                }
+
+                // Update disabled state
+                if (!isConnected) {
+                    btn.style.opacity = '0.5';
+                    btn.title = 'Node is disconnected';
+                } else if (isPrimary) {
+                    btn.style.opacity = '1';
+                    btn.title = 'Node is already primary';
+                } else {
+                    btn.style.opacity = '1';
+                    btn.title = `Click to promote ${node} to primary`;
+                }
+            });
+        }
+
+        // Promote node to primary
+        async function promoteNode(nodeName) {
+            if (isFailoverInProgress) {
+                showStatus('A failover operation is already in progress', 'info');
+                return;
+            }
+
+            isFailoverInProgress = true;
+            showStatus(`Starting failover... Promoting ${nodeName} to primary`, 'info');
+            
+            // Show loading state
+            const btn = document.getElementById(`promote${nodeName.charAt(0).toUpperCase() + nodeName.slice(1)}Btn`);
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span class="loading-spinner"></span> Promoting...';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch(`${FAILOVER_SERVICE_URL}/api/failover/promote/${nodeName}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    showStatus(`✓ Successfully promoted ${nodeName} to PRIMARY! Reloading page...`, 'success');
+                    
+                    // Wait a moment then reload
+                    setTimeout(() => {
+                        location.reload();
+                    }, 3000);
+                } else {
+                    showStatus(`✗ Failover failed: ${data.error || 'Unknown error'}`, 'error');
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                    isFailoverInProgress = false;
+                }
+            } catch (error) {
+                showStatus(`✗ Error: ${error.message}. Make sure the failover service is running.`, 'error');
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                isFailoverInProgress = false;
+                console.error('Failover error:', error);
+            }
+        }
+
+        // Show status message
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('failoverStatus');
+            statusDiv.textContent = message;
+            statusDiv.className = `status-message ${type}`;
+            
+            // Auto-hide success/info messages after 5 seconds
+            if (type !== 'error') {
+                setTimeout(() => {
+                    statusDiv.style.display = 'none';
+                }, 5000);
+            }
+        }
+
+        // Original database view function
+        function viewDatabase(dbName) {
+            console.log('Viewing database: ' + dbName);
+        }
+    </script>
+</body>
+</html>

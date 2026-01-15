@@ -1,0 +1,67 @@
+# Prometheus Configuration for PostgreSQL Monitoring
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'postgresql-ha-cluster'
+
+# Alertmanager configuration (optional)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets: []
+
+# Load rules once and periodically evaluate them
+# rule_files:
+#   - "alert_rules.yml"
+
+scrape_configs:
+  # PostgreSQL Primary
+  - job_name: 'postgres-primary'
+    static_configs:
+      - targets: ['localhost:9187']
+        labels:
+          instance: 'primary'
+          role: 'master'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+
+  # PostgreSQL Replica 1
+  - job_name: 'postgres-replica-1'
+    static_configs:
+      - targets: ['localhost:9188']
+        labels:
+          instance: 'replica-1'
+          role: 'standby'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+
+  # PostgreSQL Replica 2
+  - job_name: 'postgres-replica-2'
+    static_configs:
+      - targets: ['localhost:9189']
+        labels:
+          instance: 'replica-2'
+          role: 'standby'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+
+  # PostgreSQL Secondary (Alternate Primary)
+  - job_name: 'postgres-secondary'
+    static_configs:
+      - targets: ['localhost:9190']
+        labels:
+          instance: 'secondary'
+          role: 'master-secondary'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

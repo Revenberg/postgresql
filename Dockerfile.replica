@@ -1,0 +1,8 @@
+# PostgreSQL Replica Dockerfile
+FROM postgres:latest
+
+# Set environment variables
+ENV POSTGRES_USER=testadmin \
+    POSTGRES_PASSWORD=securepwd123 \
+    POSTGRES_INITDB_ARGS="-c hot_standby=on -c hot_standby_feedback=on -c max_standby_streaming_delay=300s"
+
