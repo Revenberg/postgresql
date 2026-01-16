@@ -15,11 +15,6 @@ services:
     networks:
       app-network:
         ipv4_address: 172.18.0.2
-    command: >
-      bash -c "
-      [ ! -f /var/lib/postgresql/standby.signal ] && touch /var/lib/postgresql/standby.signal;
-      exec docker-entrypoint.sh postgres
-      "
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U testadmin -d postgres"]
       interval: 10s
@@ -44,11 +39,6 @@ services:
     networks:
       app-network:
         ipv4_address: 172.18.0.3
-    command: >
-      bash -c "
-      [ ! -f /var/lib/postgresql/standby.signal ] && touch /var/lib/postgresql/standby.signal;
-      exec docker-entrypoint.sh postgres
-      "
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U testadmin -d postgres"]
       interval: 10s
@@ -73,11 +63,7 @@ services:
     networks:
       app-network:
         ipv4_address: 172.18.0.6
-    command: >
-      bash -c "
-      [ ! -f /var/lib/postgresql/standby.signal ] && touch /var/lib/postgresql/standby.signal;
-      exec docker-entrypoint.sh postgres
-      "
+
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U testadmin -d postgres"]
       interval: 10s
@@ -102,11 +88,7 @@ services:
     networks:
       app-network:
         ipv4_address: 172.18.0.4
-    command: >
-      bash -c "
-      [ ! -f /var/lib/postgresql/standby.signal ] && touch /var/lib/postgresql/standby.signal;
-      exec docker-entrypoint.sh postgres
-      "
+
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U testadmin -d postgres"]
       interval: 10s
@@ -131,11 +113,7 @@ services:
     networks:
       app-network:
         ipv4_address: 172.18.0.5
-    command: >
-      bash -c "
-      [ ! -f /var/lib/postgresql/standby.signal ] && touch /var/lib/postgresql/standby.signal;
-      exec docker-entrypoint.sh postgres
-      "
+
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U testadmin -d postgres"]
       interval: 10s
@@ -154,22 +132,22 @@ services:
       DB_PORT: 5432
       DB_USER: testadmin
       DB_PASSWORD: securepwd123
-      FAILOVER_SERVICE_URL: http://failover-service:5001
+      OPERATIONMANAGEMENT_SERVICE_URL: http://operationManagement:5001
     ports:
       - "5000:5000"
-    depends_on:
-      failover-service:
-        condition: service_healthy
     restart: always
     networks:
       app-network:
         ipv4_address: 172.18.0.10
 
-  failover-service:
+  operationManagement:
     build:
       context: .
-      dockerfile: Dockerfile.failover
-    container_name: failover-service
+      dockerfile: Dockerfile.operationManagement
+      tags:
+        - "operation-management:latest"
+    container_name: operationManagement
+    image: operation-management:latest
     ports:
       - "5001:5001"
     networks:

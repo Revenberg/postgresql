@@ -13,7 +13,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application
-COPY failover_service.py .
+COPY operationManagement.py .
 
 # Expose port
 EXPOSE 5001
@@ -23,4 +23,4 @@ HEALTHCHECK --interval=10s --timeout=5s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:5001/health')"
 
 # Run the service
-CMD ["python", "failover_service.py"]
+CMD ["python", "operationManagement.py"]

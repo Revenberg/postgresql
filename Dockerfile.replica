@@ -6,3 +6,40 @@ ENV POSTGRES_USER=testadmin \
     POSTGRES_PASSWORD=securepwd123 \
     POSTGRES_INITDB_ARGS="-c hot_standby=on -c hot_standby_feedback=on -c max_standby_streaming_delay=300s"
 
+# Create entrypoint script using RUN with sh -c and echo
+RUN echo '#!/bin/bash' > /entrypoint.sh && \
+    echo 'set -e' >> /entrypoint.sh && \
+    echo 'echo "Starting PostgreSQL wrapper for standby mode..."' >> /entrypoint.sh && \
+    echo 'PGDATA="/var/lib/postgresql/data"' >> /entrypoint.sh && \
+    echo '' >> /entrypoint.sh && \
+    echo 'echo "Step 1: Initializing database if needed..."' >> /entrypoint.sh && \
+    echo '/usr/local/bin/docker-entrypoint.sh postgres &' >> /entrypoint.sh && \
+    echo 'INIT_PID=$!' >> /entrypoint.sh && \
+    echo 'echo "Server PID: $INIT_PID"' >> /entrypoint.sh && \
+    echo '' >> /entrypoint.sh && \
+    echo 'echo "Step 2: Waiting for initialization..."' >> /entrypoint.sh && \
+    echo 'for i in {1..60}; do' >> /entrypoint.sh && \
+    echo '  if [ -f "$PGDATA/postgresql.conf" ]; then' >> /entrypoint.sh && \
+    echo '    echo "✓ Database initialized"' >> /entrypoint.sh && \
+    echo '    sleep 2' >> /entrypoint.sh && \
+    echo '    echo "Step 3: Creating standby.signal file..."' >> /entrypoint.sh && \
+    echo '    touch "$PGDATA/standby.signal"' >> /entrypoint.sh && \
+    echo '    echo "✓ Standby signal created"' >> /entrypoint.sh && \
+    echo '    echo "Step 4: Restarting PostgreSQL in standby mode..."' >> /entrypoint.sh && \
+    echo '    su - postgres -c "/usr/lib/postgresql/*/bin/pg_ctl -D \"$PGDATA\" -m immediate stop" || true' >> /entrypoint.sh && \
+    echo '    sleep 2' >> /entrypoint.sh && \
+    echo '    break' >> /entrypoint.sh && \
+    echo '  fi' >> /entrypoint.sh && \
+    echo '  sleep 1' >> /entrypoint.sh && \
+    echo 'done' >> /entrypoint.sh && \
+    echo '' >> /entrypoint.sh && \
+    echo 'echo "Step 5: Waiting for initialization process..."' >> /entrypoint.sh && \
+    echo 'wait $INIT_PID || true' >> /entrypoint.sh && \
+    echo '' >> /entrypoint.sh && \
+    echo 'echo "Step 6: Starting PostgreSQL in standby mode..."' >> /entrypoint.sh && \
+    echo 'exec /usr/local/bin/docker-entrypoint.sh postgres' >> /entrypoint.sh && \
+    chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
+CMD []
+

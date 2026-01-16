@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-PostgreSQL Failover Service
-Provides API endpoints to perform failover operations between nodes
+PostgreSQL operationmanagement Service
+Provides API endpoints to perform operationmanagement operations between nodes
 """
 
 from flask import Flask, jsonify, request
@@ -195,12 +195,12 @@ def get_current_primary():
 @app.route('/health', methods=['GET'])
 def health():
     """Health check endpoint"""
-    return jsonify({'status': 'healthy', 'service': 'failover_service'}), 200
+    return jsonify({'status': 'healthy', 'service': 'operationmanagement_service'}), 200
 
-@app.route('/api/failover/status', methods=['GET'])
-def failover_status():
+@app.route('/api/operationmanagement/status', methods=['GET'])
+def operationmanagement_status():
     """Get current cluster status"""
-    print(f"\n[API] GET /api/failover/status", file=sys.stderr)
+    print(f"\n[API] GET /api/operationmanagement/status", file=sys.stderr)
     sys.stderr.flush()
     status = {}
     for node_name in NODES:
@@ -208,23 +208,18 @@ def failover_status():
         sys.stderr.flush()
         status[node_name] = get_node_status(node_name)
     
-    current_primary = get_current_primary()
-    print(f"[API] Current primary: {current_primary}", file=sys.stderr)
-    sys.stderr.flush()
-    
     result = {
         'nodes': status,
-        'current_primary': current_primary,
         'timestamp': time.time()
     }
     print(f"[API] Returning: {result}", file=sys.stderr)
     sys.stderr.flush()
     return jsonify(result), 200
 
-@app.route('/api/failover/status/<node_name>', methods=['GET'])
+@app.route('/api/operationmanagement/status/<node_name>', methods=['GET'])
 def get_status(node_name):
     """Get status of a specific node"""
-    print(f"\n[API] GET /api/failover/status/{node_name}", file=sys.stderr)
+    print(f"\n[API] GET /api/operationmanagement/status/{node_name}", file=sys.stderr)
     sys.stderr.flush()
     
     if node_name not in NODES:
@@ -233,24 +228,20 @@ def get_status(node_name):
         return jsonify({'error': 'Invalid node name'}), 400
     
     status = get_node_status(node_name)
-    current_primary = get_current_primary()
-    print(f"[API] Current primary: {current_primary}", file=sys.stderr)
-    sys.stderr.flush()
     
     result = {
         'node': node_name,
         'status': status,
-        'is_current_primary': node_name == current_primary,
         'timestamp': time.time()
     }
     print(f"[API] Returning: {result}", file=sys.stderr)
     sys.stderr.flush()
     return jsonify(result), 200
 
-@app.route('/api/failover/promote/<node_name>', methods=['POST'])
+@app.route('/api/operationmanagement/promote/<node_name>', methods=['POST'])
 def promote_node(node_name):
     """Promote a node to primary"""
-    print(f"\n[API] POST /api/failover/promote/{node_name}", file=sys.stderr)
+    print(f"\n[API] POST /api/operationmanagement/promote/{node_name}", file=sys.stderr)
     sys.stderr.flush()
     if node_name not in NODES:
         print(f"[ERROR] Invalid node name: {node_name}", file=sys.stderr)
@@ -289,12 +280,12 @@ def promote_node(node_name):
         step_number = 1
         
         # Promote the node
-        print(f"\n[Failover] Step {step_number}: Starting promotion of {node_name} ({container}) to primary", file=sys.stderr)
+        print(f"\n[operationmanagement] Step {step_number}: Starting promotion of {node_name} ({container}) to primary", file=sys.stderr)
         sys.stderr.flush()
         step_number += 1
         
         # Resume WAL replay first
-        print(f"[Failover] Step {step_number}: Resuming WAL replay on {container}...", file=sys.stderr)
+        print(f"[operationmanagement] Step {step_number}: Resuming WAL replay on {container}...", file=sys.stderr)
         sys.stderr.flush()
         result = subprocess.run(
             ['docker', 'exec', container, 'bash', '-c', 
@@ -303,29 +294,29 @@ def promote_node(node_name):
             text=True,
             timeout=10
         )
-        print(f"[Failover] Step {step_number}: WAL resume result: returncode={result.returncode}", file=sys.stderr)
+        print(f"[operationmanagement] Step {step_number}: WAL resume result: returncode={result.returncode}", file=sys.stderr)
         if result.stderr:
-            print(f"[Failover] Step {step_number}: stderr: {result.stderr}", file=sys.stderr)
+            print(f"[operationmanagement] Step {step_number}: stderr: {result.stderr}", file=sys.stderr)
         sys.stderr.flush()
         step_number += 1
         
         time.sleep(2)
         
         # Promote using pg_ctl (this will handle removing standby.signal)
-        print(f"[Failover] Step {step_number}: Running pg_ctl promote on {container}...", file=sys.stderr)
+        print(f"[operationmanagement] Step {step_number}: Running pg_ctl promote on {container}...", file=sys.stderr)
         sys.stderr.flush()
         result = subprocess.run(
             ['docker', 'exec', container, 'bash', '-c',
-             'su - postgres -c "/usr/lib/postgresql/18/bin/pg_ctl promote -D /var/lib/postgresql/data/pgdata"'],
+             'su - postgres -c "/usr/lib/postgresql/18/bin/pg_ctl promote -D /var/lib/postgresql/data"'],
             capture_output=True,
             text=True,
             timeout=10
         )
         
-        print(f"[Failover] Step {step_number}: pg_ctl promote result:", file=sys.stderr)
-        print(f"[Failover]   returncode={result.returncode}", file=sys.stderr)
-        print(f"[Failover]   stdout: {result.stdout if result.stdout else '(empty)'}", file=sys.stderr)
-        print(f"[Failover]   stderr: {result.stderr if result.stderr else '(empty)'}", file=sys.stderr)
+        print(f"[operationmanagement] Step {step_number}: pg_ctl promote result:", file=sys.stderr)
+        print(f"[operationmanagement]   returncode={result.returncode}", file=sys.stderr)
+        print(f"[operationmanagement]   stdout: {result.stdout if result.stdout else '(empty)'}", file=sys.stderr)
+        print(f"[operationmanagement]   stderr: {result.stderr if result.stderr else '(empty)'}", file=sys.stderr)
         sys.stderr.flush()
         
         if result.returncode != 0:
@@ -340,16 +331,16 @@ def promote_node(node_name):
         step_number += 1
         
         # Wait for promotion to complete
-        print(f"[Failover] Step {step_number}: Waiting 5 seconds for promotion to stabilize...", file=sys.stderr)
+        print(f"[operationmanagement] Step {step_number}: Waiting 5 seconds for promotion to stabilize...", file=sys.stderr)
         sys.stderr.flush()
         time.sleep(5)
         step_number += 1
         
         # Verify promotion
-        print(f"[Failover] Step {step_number}: Verifying promotion of {node_name}...", file=sys.stderr)
+        print(f"[operationmanagement] Step {step_number}: Verifying promotion of {node_name}...", file=sys.stderr)
         sys.stderr.flush()
         verify_status = get_node_status(node_name)
-        print(f"[Failover] Step {step_number}: Verification result: {verify_status}", file=sys.stderr)
+        print(f"[operationmanagement] Step {step_number}: Verification result: {verify_status}", file=sys.stderr)
         sys.stderr.flush()
         
         if not verify_status.get('is_primary'):
@@ -361,22 +352,22 @@ def promote_node(node_name):
             }), 500
         
         step_number += 1
-        print(f"[Failover] Step {step_number}: Promotion verification SUCCESSFUL - {node_name} is now primary", file=sys.stderr)
+        print(f"[operationmanagement] Step {step_number}: Promotion verification SUCCESSFUL - {node_name} is now primary", file=sys.stderr)
         sys.stderr.flush()
         step_number += 1
         
         # Reconfigure other nodes as standby
-        print(f"[Failover] Step {step_number}: Reconfiguring remaining nodes as standby...", file=sys.stderr)
+        print(f"[operationmanagement] Step {step_number}: Reconfiguring remaining nodes as standby...", file=sys.stderr)
         sys.stderr.flush()
         for other_node in NODES:
             if other_node == node_name:
                 continue
-            print(f"[Failover] Step {step_number}: Reconfiguring {other_node} as standby...", file=sys.stderr)
+            print(f"[operationmanagement] Step {step_number}: Reconfiguring {other_node} as standby...", file=sys.stderr)
             sys.stderr.flush()
             reconfigure_standby(other_node, node_name)
         
         step_number += 1
-        print(f"[Failover] Step {step_number}: Failover complete - {node_name} is primary and standbys reconfigured", file=sys.stderr)
+        print(f"[operationmanagement] Step {step_number}: operationmanagement complete - {node_name} is primary and standbys reconfigured", file=sys.stderr)
         sys.stderr.flush()
         
         return jsonify({
@@ -426,7 +417,7 @@ def reconfigure_standby(standby_node, primary_node):
         sys.stderr.flush()
         result = subprocess.run(
             ['docker', 'exec', standby_container, 'bash', '-c',
-             'rm -rf /var/lib/postgresql/data/pgdata/*'],
+             'rm -rf /var/lib/postgresql/data/*'],
             capture_output=True,
             text=True,
             timeout=10
@@ -442,7 +433,7 @@ def reconfigure_standby(standby_node, primary_node):
         backup_cmd = (
             f'PGPASSWORD={DB_CONFIG["password"]} pg_basebackup '
             f'-h {primary_container} -U {DB_CONFIG["user"]} '
-            f'-D /var/lib/postgresql/data/pgdata -P -R'
+            f'-D /var/lib/postgresql/data -P -R'
         )
         result = subprocess.run(
             ['docker', 'exec', standby_container, 'bash', '-c', backup_cmd],
@@ -460,7 +451,7 @@ def reconfigure_standby(standby_node, primary_node):
         sys.stderr.flush()
         result = subprocess.run(
             ['docker', 'exec', standby_container, 'bash', '-c',
-             'touch /var/lib/postgresql/data/pgdata/standby.signal'],
+             'touch /var/lib/postgresql/data/standby.signal'],
             capture_output=True,
             text=True,
             timeout=10
@@ -499,10 +490,10 @@ def reconfigure_standby(standby_node, primary_node):
         traceback.print_exc(file=sys.stderr)
         sys.stderr.flush()
 
-@app.route('/api/failover/execute', methods=['POST'])
-def execute_failover():
-    """Execute failover with data from request"""
-    print(f"\n[API] POST /api/failover/execute", file=sys.stderr)
+@app.route('/api/operationmanagement/primary', methods=['POST'])
+def execute_operationmanagement():
+    """Execute operationmanagement with data from request"""
+    print(f"\n[API] POST /api/operationmanagement/primary", file=sys.stderr)
     sys.stderr.flush()
     data = request.get_json()
     new_primary = data.get('new_primary')
@@ -516,15 +507,108 @@ def execute_failover():
     
     return promote_node(new_primary)
 
-@app.route('/api/failover/nodes', methods=['GET'])
+@app.route('/api/operationmanagement/demote-all', methods=['POST'])
+def demote_all():
+    """Demote all nodes to standby (remove primary)"""
+    print(f"\n[API] POST /api/operationmanagement/demote-all", file=sys.stderr)
+    sys.stderr.flush()
+    
+    try:
+        current_primary = get_current_primary()
+        print(f"[Demote All] Current primary: {current_primary}", file=sys.stderr)
+        sys.stderr.flush()
+        
+        # No need to check for primary - demote all works regardless
+        
+        step_number = 1
+        print(f"[Demote All] Step {step_number}: Starting demotion of ALL nodes", file=sys.stderr)
+        sys.stderr.flush()
+        step_number += 1
+        
+        # Demote ALL nodes (not just the primary) to ensure all have standby.signal
+        for node_name in NODES:
+            node_container = NODES[node_name]['container']
+            print(f"[Demote All] Step {step_number}: Adding standby.signal to {node_name} ({node_container})...", file=sys.stderr)
+            sys.stderr.flush()
+            
+            # Create the standby.signal file using docker exec
+            result = subprocess.run(
+                ['docker', 'exec', node_container, 'bash', '-c',
+                 'touch /var/lib/postgresql/data/standby.signal'],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            print(f"[Demote All] Step {step_number}: Standby signal result - returncode={result.returncode}", file=sys.stderr)
+            if result.returncode != 0:
+                print(f"[Demote All] Step {step_number}: stderr: {result.stderr}", file=sys.stderr)
+            sys.stderr.flush()
+            step_number += 1
+        
+        # Restart all nodes to make them standby
+        print(f"[Demote All] Step {step_number}: Restarting all nodes as standby...", file=sys.stderr)
+        sys.stderr.flush()
+        for node_name in NODES:
+            node_container = NODES[node_name]['container']
+            result = subprocess.run(['docker', 'restart', node_container], capture_output=True, text=True, timeout=10)
+            print(f"[Demote All] Step {step_number}: {node_name} restart result - returncode={result.returncode}", file=sys.stderr)
+            sys.stderr.flush()
+        step_number += 1
+        
+        time.sleep(5)
+        
+        step_number += 1
+        print(f"[Demote All] Step {step_number}: Verifying all nodes are standby...", file=sys.stderr)
+        sys.stderr.flush()
+        
+        all_standby = True
+        for node_name in NODES:
+            status = get_node_status(node_name)
+            print(f"[Demote All] Step {step_number}: {node_name} is_primary: {status.get('is_primary')}", file=sys.stderr)
+            sys.stderr.flush()
+            if status.get('is_primary'):
+                all_standby = False
+        
+        if all_standby:
+            print(f"[Demote All] SUCCESS - All nodes are now standby", file=sys.stderr)
+            sys.stderr.flush()
+            return jsonify({
+                'success': True,
+                'message': 'All nodes demoted to standby',
+                'status': 'success'
+            }), 200
+        else:
+            print(f"[Demote All] WARNING - Some nodes may still be primary", file=sys.stderr)
+            sys.stderr.flush()
+            return jsonify({
+                'success': True,
+                'message': 'Demotion initiated (verification pending)',
+                'status': 'partial_success'
+            }), 200
+    
+    except subprocess.TimeoutExpired as e:
+        print(f"[ERROR] demote_all timeout: {str(e)}", file=sys.stderr)
+        sys.stderr.flush()
+        return jsonify({
+            'error': 'Operation timeout',
+            'status': 'timeout'
+        }), 504
+    except Exception as e:
+        print(f"[ERROR] demote_all error: {str(e)}", file=sys.stderr)
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        sys.stderr.flush()
+        return jsonify({
+            'error': str(e),
+            'status': 'error'
+        }), 500
+
+@app.route('/api/operationmanagement/nodes', methods=['GET'])
 def get_nodes():
     """Get list of all nodes"""
-    print(f"\n[API] GET /api/failover/nodes", file=sys.stderr)
+    print(f"\n[API] GET /api/operationmanagement/nodes", file=sys.stderr)
     sys.stderr.flush()
     nodes = []
-    current_primary = get_current_primary()
-    print(f"[DEBUG] Current primary: {current_primary}", file=sys.stderr)
-    sys.stderr.flush()
     
     for node_name in ['node1', 'node2', 'node3']:
         print(f"[DEBUG] Getting status for {node_name}...", file=sys.stderr)
@@ -538,29 +622,28 @@ def get_nodes():
             'container': NODES[node_name]['container'],
             'port': NODES[node_name]['port'],
             'status': status.get('status'),
-            'is_primary': status.get('is_primary'),
-            'is_current_primary': node_name == current_primary
+            'is_primary': status.get('is_primary')
         })
     
     print(f"[API] Returning {len(nodes)} nodes", file=sys.stderr)
     sys.stderr.flush()
     return jsonify({
-        'nodes': nodes,
-        'current_primary': current_primary
+        'nodes': nodes
     }), 200
 
 
 if __name__ == '__main__':
     print("\n" + "="*60)
-    print("PostgreSQL Failover Service - Starting")
+    print("PostgreSQL operationmanagement Service - Starting")
     print("="*60)
     print("Available endpoints:")
     print("  GET  /health                    - Health check")
-    print("  GET  /api/failover/status       - Get cluster status")
-    print("  GET  /api/failover/status/<node> - Get node status")
-    print("  GET  /api/failover/nodes        - Get list of nodes")
-    print("  POST /api/failover/promote/<node> - Promote node to primary")
-    print("  POST /api/failover/execute      - Execute failover (JSON body)")
+    print("  GET  /api/operationmanagement/status       - Get cluster status")
+    print("  GET  /api/operationmanagement/status/<node> - Get node status")
+    print("  GET  /api/operationmanagement/nodes        - Get list of nodes")
+    print("  POST /api/operationmanagement/promote/<node> - Promote node to primary")
+    print("  POST /api/operationmanagement/primary      - Set primary node (JSON body)")
+    print("  POST /api/operationmanagement/demote-all   - Demote all nodes to standby")
     print("="*60 + "\n")
     
     app.run(host='0.0.0.0', port=5001, debug=False)
