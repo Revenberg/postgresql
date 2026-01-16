@@ -279,8 +279,44 @@ def promote_node(node_name):
         container = NODES[node_name]['container']
         step_number = 1
         
-        # Promote the node
-        print(f"\n[operationmanagement] Step {step_number}: Starting promotion of {node_name} ({container}) to primary", file=sys.stderr)
+        # Step 1: Demote all nodes first to ensure clean state
+        print(f"\n[operationmanagement] Step {step_number}: Demoting all nodes to standby first", file=sys.stderr)
+        sys.stderr.flush()
+        step_number += 1
+        
+        for node in NODES:
+            node_container = NODES[node]['container']
+            print(f"[operationmanagement] Step {step_number}: Adding standby.signal to {node} ({node_container})...", file=sys.stderr)
+            sys.stderr.flush()
+            
+            result = subprocess.run(
+                ['docker', 'exec', node_container, 'bash', '-c',
+                 'touch /var/lib/postgresql/data/standby.signal'],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            print(f"[operationmanagement] Step {step_number}: Standby signal result - returncode={result.returncode}", file=sys.stderr)
+            if result.returncode != 0:
+                print(f"[operationmanagement] Step {step_number}: stderr: {result.stderr}", file=sys.stderr)
+            sys.stderr.flush()
+            step_number += 1
+        
+        # Restart all nodes
+        print(f"[operationmanagement] Step {step_number}: Restarting all nodes as standby...", file=sys.stderr)
+        sys.stderr.flush()
+        for node in NODES:
+            node_container = NODES[node]['container']
+            result = subprocess.run(['docker', 'restart', node_container], capture_output=True, text=True, timeout=10)
+            print(f"[operationmanagement] Step {step_number}: {node} restart result - returncode={result.returncode}", file=sys.stderr)
+            sys.stderr.flush()
+        step_number += 1
+        
+        time.sleep(5)
+        step_number += 1
+        
+        # Now promote the specified node
+        print(f"[operationmanagement] Step {step_number}: Starting promotion of {node_name} ({container}) to primary", file=sys.stderr)
         sys.stderr.flush()
         step_number += 1
         
