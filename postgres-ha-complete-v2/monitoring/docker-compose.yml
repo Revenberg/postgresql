@@ -1,0 +1,147 @@
+version: "3.9"
+
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus-cluster
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    networks:
+      - monitoring
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+
+  # Exporter for Node 1
+  exporter-node-1:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: exporter-node-1
+    ports:
+      - "9187:9187"
+    environment:
+      DATA_SOURCE_NAME: "postgresql://appuser:apppass@pg-node-1:5432/appdb?sslmode=disable"
+      PG_EXPORTER_EXTEND_QUERY_PATH: "/etc/postgres_exporter/queries.yaml"
+    volumes:
+      - ./queries.yaml:/etc/postgres_exporter/queries.yaml:ro
+    networks:
+      - monitoring
+      - ha-network
+    labels:
+      - "instance=pg-node-1"
+
+  # Exporter for Node 2
+  exporter-node-2:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: exporter-node-2
+    ports:
+      - "9188:9187"
+    environment:
+      DATA_SOURCE_NAME: "postgresql://appuser:apppass@pg-node-2:5432/appdb?sslmode=disable"
+      PG_EXPORTER_EXTEND_QUERY_PATH: "/etc/postgres_exporter/queries.yaml"
+    volumes:
+      - ./queries.yaml:/etc/postgres_exporter/queries.yaml:ro
+    networks:
+      - monitoring
+      - ha-network
+    labels:
+      - "instance=pg-node-2"
+
+  # Exporter for Node 3
+  exporter-node-3:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: exporter-node-3
+    ports:
+      - "9189:9187"
+    environment:
+      DATA_SOURCE_NAME: "postgresql://appuser:apppass@pg-node-3:5432/appdb?sslmode=disable"
+      PG_EXPORTER_EXTEND_QUERY_PATH: "/etc/postgres_exporter/queries.yaml"
+    volumes:
+      - ./queries.yaml:/etc/postgres_exporter/queries.yaml:ro
+    networks:
+      - monitoring
+      - ha-network
+    labels:
+      - "instance=pg-node-3"
+
+  # Exporter for Node 4
+  exporter-node-4:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: exporter-node-4
+    ports:
+      - "9190:9187"
+    environment:
+      DATA_SOURCE_NAME: "postgresql://appuser:apppass@pg-node-4:5432/appdb?sslmode=disable"
+      PG_EXPORTER_EXTEND_QUERY_PATH: "/etc/postgres_exporter/queries.yaml"
+    volumes:
+      - ./queries.yaml:/etc/postgres_exporter/queries.yaml:ro
+    networks:
+      - monitoring
+      - ha-network
+    labels:
+      - "instance=pg-node-4"
+
+  # Exporter for Node 5
+  exporter-node-5:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: exporter-node-5
+    ports:
+      - "9191:9187"
+    environment:
+      DATA_SOURCE_NAME: "postgresql://appuser:apppass@pg-node-5:5432/appdb?sslmode=disable"
+      PG_EXPORTER_EXTEND_QUERY_PATH: "/etc/postgres_exporter/queries.yaml"
+    volumes:
+      - ./queries.yaml:/etc/postgres_exporter/queries.yaml:ro
+    networks:
+      - monitoring
+      - ha-network
+    labels:
+      - "instance=pg-node-5"
+
+  # Exporter for Node 6
+  exporter-node-6:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: exporter-node-6
+    ports:
+      - "9192:9187"
+    environment:
+      DATA_SOURCE_NAME: "postgresql://appuser:apppass@pg-node-6:5432/appdb?sslmode=disable"
+      PG_EXPORTER_EXTEND_QUERY_PATH: "/etc/postgres_exporter/queries.yaml"
+    volumes:
+      - ./queries.yaml:/etc/postgres_exporter/queries.yaml:ro
+    networks:
+      - monitoring
+      - ha-network
+    labels:
+      - "instance=pg-node-6"
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana-cluster
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_SECURITY_ADMIN_USER: admin
+      GF_INSTALL_PLUGINS: grafana-piechart-panel
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ./provisioning/datasources:/etc/grafana/provisioning/datasources
+    networks:
+      - monitoring
+
+volumes:
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+networks:
+  monitoring:
+    driver: bridge
+  ha-network:
+    external: true
+    name: postgres-ha-complete-v2_ha-network

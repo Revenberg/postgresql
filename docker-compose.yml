@@ -3,11 +3,13 @@ services:
   postgres-node1:
     build:
       context: .
-      dockerfile: Dockerfile.replica
+      dockerfile: Dockerfile.secundairy
     container_name: postgres-node1
     environment:
       POSTGRES_USER: testadmin
       POSTGRES_PASSWORD: securepwd123
+      NODE_TYPE: backup
+      NODE_ROLE: standby
     ports:
       - "5432:5432"
     volumes:
@@ -27,11 +29,13 @@ services:
   postgres-node2:
     build:
       context: .
-      dockerfile: Dockerfile.replica
+      dockerfile: Dockerfile.secundairy
     container_name: postgres-node2
     environment:
       POSTGRES_USER: testadmin
       POSTGRES_PASSWORD: securepwd123
+      NODE_TYPE: backup
+      NODE_ROLE: standby
     ports:
       - "5435:5432"
     volumes:
@@ -51,11 +55,13 @@ services:
   postgres-node3:
     build:
       context: .
-      dockerfile: Dockerfile.replica
+      dockerfile: Dockerfile.secundairy
     container_name: postgres-node3
     environment:
       POSTGRES_USER: testadmin
       POSTGRES_PASSWORD: securepwd123
+      NODE_TYPE: backup
+      NODE_ROLE: standby
     ports:
       - "5436:5432"
     volumes:
@@ -81,6 +87,7 @@ services:
     environment:
       POSTGRES_USER: testadmin
       POSTGRES_PASSWORD: securepwd123
+      NODE_TYPE: replica
     ports:
       - "5433:5432"
     volumes:
@@ -106,6 +113,7 @@ services:
     environment:
       POSTGRES_USER: testadmin
       POSTGRES_PASSWORD: securepwd123
+      NODE_TYPE: replica
     ports:
       - "5434:5432"
     volumes:
@@ -128,13 +136,11 @@ services:
       dockerfile: Dockerfile.webserver
     container_name: postgres-explorer
     environment:
-      DB_HOST: postgres-node1
-      DB_PORT: 5432
-      DB_USER: testadmin
-      DB_PASSWORD: securepwd123
       OPERATIONMANAGEMENT_SERVICE_URL: http://operationManagement:5001
     ports:
       - "5000:5000"
+    depends_on:
+      - operationManagement
     restart: always
     networks:
       app-network:
@@ -157,54 +163,19 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     restart: always
 
-  test-data-generator-node1:
+  test-data-generator-node:
     build:
       context: .
       dockerfile: Dockerfile.testgen
-    container_name: postgres-test-generator-node1
+    container_name: postgres-test-generator-node
     environment:
       PYTHONUNBUFFERED: 1
-      DB_HOST: postgres-node1
-      DB_PORT: 5432
+      OPERATIONMANAGEMENT_URL: http://operationManagement:5001
       DB_USER: testadmin
       DB_PASSWORD: securepwd123
       DB_NAME: testdb
-    networks:
-      - app-network
-    profiles:
-      - test
-    restart: "no"
-
-  test-data-generator-node2:
-    build:
-      context: .
-      dockerfile: Dockerfile.testgen
-    container_name: postgres-test-generator-node2
-    environment:
-      PYTHONUNBUFFERED: 1
-      DB_HOST: postgres-node1
-      DB_PORT: 5432
-      DB_USER: testadmin
-      DB_PASSWORD: securepwd123
-      DB_NAME: testdb
-    networks:
-      - app-network
-    profiles:
-      - test
-    restart: "no"
-
-  test-data-generator-node3:
-    build:
-      context: .
-      dockerfile: Dockerfile.testgen
-    container_name: postgres-test-generator-node3
-    environment:
-      PYTHONUNBUFFERED: 1
-      DB_HOST: postgres-node3
-      DB_PORT: 5436
-      DB_USER: testadmin
-      DB_PASSWORD: securepwd123
-      DB_NAME: testdb
+    depends_on:
+      - operationManagement
     networks:
       - app-network
     profiles:
@@ -218,11 +189,16 @@ services:
       dockerfile: Dockerfile.init
     container_name: postgres-db-init
     environment:
-      DB_HOST: postgres-node1
-      DB_PORT: 5432
+      OPERATIONMANAGEMENT_URL: http://operationManagement:5001
+      API_URL: http://operationManagement:5001
       DB_USER: testadmin
       DB_PASSWORD: securepwd123
       DB_NAME: testdb
+    depends_on:
+      - operationManagement
+      - postgres-node1
+      - postgres-node2
+      - postgres-node3
     networks:
       - app-network
     profiles:

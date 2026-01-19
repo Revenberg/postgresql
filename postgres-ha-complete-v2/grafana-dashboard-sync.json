@@ -1,0 +1,163 @@
+﻿{
+    "dashboard":  {
+                      "title":  "PostgreSQL HA Cluster - Node Synchronization",
+                      "tags":  [
+                                   "postgres",
+                                   "ha",
+                                   "sync"
+                               ],
+                      "timezone":  "UTC",
+                      "panels":  [
+                                     {
+                                         "id":  1,
+                                         "fieldConfig":  {
+                                                             "defaults":  {
+                                                                              "custom":  {
+                                                                                             "lineWidth":  2,
+                                                                                             "showPoints":  "never"
+                                                                                         }
+                                                                          }
+                                                         },
+                                         "gridPos":  {
+                                                         "y":  0,
+                                                         "w":  24,
+                                                         "x":  0,
+                                                         "h":  8
+                                                     },
+                                         "targets":  [
+                                                         {
+                                                             "legendFormat":  "{{ instance }} - {{ relname }}",
+                                                             "expr":  "pg_stat_user_tables_n_live_tup{relname=\"test_data\"}",
+                                                             "refId":  "A"
+                                                         }
+                                                     ],
+                                         "type":  "timeseries",
+                                         "options":  {
+                                                         "legend":  {
+                                                                        "displayMode":  "table",
+                                                                        "calcs":  [
+                                                                                      "last"
+                                                                                  ]
+                                                                    }
+                                                     },
+                                         "title":  "Test Data Rows - All Nodes"
+                                     },
+                                     {
+                                         "id":  2,
+                                         "fieldConfig":  {
+                                                             "defaults":  {
+                                                                              "custom":  {
+                                                                                             "lineWidth":  2
+                                                                                         },
+                                                                              "color":  {
+                                                                                            "mode":  "thresholds"
+                                                                                        },
+                                                                              "thresholds":  {
+                                                                                                 "steps":  [
+                                                                                                               {
+                                                                                                                   "value":  null,
+                                                                                                                   "color":  "green"
+                                                                                                               },
+                                                                                                               {
+                                                                                                                   "value":  10,
+                                                                                                                   "color":  "yellow"
+                                                                                                               },
+                                                                                                               {
+                                                                                                                   "value":  100,
+                                                                                                                   "color":  "red"
+                                                                                                               }
+                                                                                                           ],
+                                                                                                 "mode":  "absolute"
+                                                                                             }
+                                                                          }
+                                                         },
+                                         "gridPos":  {
+                                                         "y":  8,
+                                                         "w":  24,
+                                                         "x":  0,
+                                                         "h":  8
+                                                     },
+                                         "targets":  [
+                                                         {
+                                                             "legendFormat":  "Max difference",
+                                                             "expr":  "max(pg_stat_user_tables_n_live_tup{relname=\"test_data\"}) - min(pg_stat_user_tables_n_live_tup{relname=\"test_data\"})",
+                                                             "refId":  "A"
+                                                         }
+                                                     ],
+                                         "type":  "timeseries",
+                                         "title":  "Row Count Difference Between Nodes"
+                                     },
+                                     {
+                                         "id":  3,
+                                         "fieldConfig":  {
+                                                             "defaults":  {
+                                                                              "custom":  {
+                                                                                             "lineWidth":  2
+                                                                                         }
+                                                                          }
+                                                         },
+                                         "gridPos":  {
+                                                         "y":  16,
+                                                         "w":  24,
+                                                         "x":  0,
+                                                         "h":  8
+                                                     },
+                                         "targets":  [
+                                                         {
+                                                             "legendFormat":  "{{ instance }} - inserts/sec",
+                                                             "expr":  "rate(pg_stat_user_tables_n_tup_ins{relname=\"test_data\"}[1m])",
+                                                             "refId":  "A"
+                                                         }
+                                                     ],
+                                         "type":  "timeseries",
+                                         "title":  "Insert Rate per Node"
+                                     },
+                                     {
+                                         "id":  4,
+                                         "fieldConfig":  {
+                                                             "defaults":  {
+                                                                              "custom":  {
+                                                                                             "lineWidth":  2
+                                                                                         },
+                                                                              "color":  {
+                                                                                            "mode":  "thresholds"
+                                                                                        },
+                                                                              "thresholds":  {
+                                                                                                 "steps":  [
+                                                                                                               {
+                                                                                                                   "value":  null,
+                                                                                                                   "color":  "green"
+                                                                                                               },
+                                                                                                               {
+                                                                                                                   "value":  50,
+                                                                                                                   "color":  "yellow"
+                                                                                                               },
+                                                                                                               {
+                                                                                                                   "value":  100,
+                                                                                                                   "color":  "red"
+                                                                                                               }
+                                                                                                           ],
+                                                                                                 "mode":  "absolute"
+                                                                                             }
+                                                                          }
+                                                         },
+                                         "gridPos":  {
+                                                         "y":  24,
+                                                         "w":  24,
+                                                         "x":  0,
+                                                         "h":  8
+                                                     },
+                                         "targets":  [
+                                                         {
+                                                             "legendFormat":  "{{ instance }} - lag (ms)",
+                                                             "expr":  "pg_replication_lag_seconds * 1000",
+                                                             "refId":  "A"
+                                                         }
+                                                     ],
+                                         "type":  "timeseries",
+                                         "title":  "Replication Lag (ms)"
+                                     }
+                                 ],
+                      "refresh":  "5s"
+                  }
+}

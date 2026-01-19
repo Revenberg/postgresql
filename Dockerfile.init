@@ -3,10 +3,13 @@ FROM postgres:latest
 
 WORKDIR /app
 
-# Install psycopg2-binary for Python utilities (if needed)
+# Install dependencies: curl for API calls, postgresql-client for psql
 RUN apt-get update && apt-get install -y --no-install-recommends \
     postgresql-client \
     bash \
+    curl \
+    jq \
+    netcat-traditional \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy initialization script

@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PostgreSQL Cluster Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        header h1 { font-size: 32px; margin-bottom: 5px; }
+        header p { font-size: 14px; opacity: 0.9; }
+        .nav-links {
+            display: flex;
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .nav-links a {
+            display: inline-block;
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.3s ease;
+        }
+        .nav-links a:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        .nav-links a.active {
+            background: rgba(255, 255, 255, 0.4);
+            font-weight: 600;
+        }
+        .content { padding: 30px; }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .stat-card h3 { color: #333; font-size: 14px; margin-bottom: 10px; }
+        .stat-card .value { font-size: 36px; font-weight: bold; color: #667eea; }
+        .stat-card.primary { background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%); }
+        .stat-card.primary .value { color: #ff6b6b; }
+        .stat-card.healthy { background: linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%); }
+        .stat-card.healthy .value { color: #2ecc71; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 13px;
+        }
+        .table-wrapper {
+            overflow-x: auto;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        table thead {
+            background: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+            position: sticky;
+            top: 0;
+        }
+        table th {
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #495057;
+            white-space: nowrap;
+        }
+        table td {
+            padding: 12px;
+            border-bottom: 1px solid #e9ecef;
+        }
+        table tbody tr:hover { background: #f8f9fa; }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .status-badge.primary { background: #ffe5e5; color: #d32f2f; }
+        .status-badge.standby { background: #e3f2fd; color: #1976d2; }
+        .status-badge.healthy { background: #e8f5e9; color: #388e3c; }
+        .status-badge.unhealthy { background: #fff3e0; color: #f57c00; }
+        .section-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        .error {
+            background: #ffebee;
+            border: 1px solid #ef5350;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        .refresh-control {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .refresh-control label {
+            font-weight: 600;
+            color: #333;
+        }
+        .refresh-control select {
+            padding: 6px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            background: white;
+        }
+        .refresh-control select:hover {
+            border-color: #667eea;
+        }
+        .button {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .button.promote {
+            background: #667eea;
+            color: white;
+        }
+        .button.promote:hover {
+            background: #5568d3;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+        }
+        .button.demote {
+            background: #ff9800;
+            color: white;
+        }
+        .button.demote:hover {
+            background: #e68900;
+            box-shadow: 0 2px 8px rgba(255, 152, 0, 0.4);
+        }
+        .button.demote:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>PostgreSQL Cluster Dashboard</h1>
+            <p>Real-time cluster monitoring via operationManagement API</p>
+            <div class="nav-links">
+                <a href="/" class="active">Dashboard</a>
+                <a href="/clusters">Cluster Management</a>
+            </div>
+        </header>
+        
+        <div class="content">
+            {% if cluster %}
+                <div class="refresh-control">
+                    <label for="refreshInterval">Auto-Refresh Interval:</label>
+                    <select id="refreshInterval" onchange="updateRefreshInterval(this.value)">
+                        <option value="0">Never</option>
+                        <option value="5000">5 seconds</option>
+                        <option value="10000" selected>10 seconds</option>
+                        <option value="15000">15 seconds</option>
+                        <option value="30000">30 seconds</option>
+                        <option value="60000">60 seconds</option>
+                    </select>
+                </div>
+
+                <div class="stats">
+                    <div class="stat-card healthy">
+                        <h3>Total Nodes</h3>
+                        <div class="value">{{ cluster.nodes|length }}</div>
+                    </div>
+                    <div class="stat-card primary">
+                        <h3>Primary Nodes</h3>
+                        <div class="value">{{ cluster.nodes|selectattr('is_primary')|list|length }}</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Standby Nodes</h3>
+                        <div class="value">{{ cluster.nodes|rejectattr('is_primary')|list|length }}</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Cluster Status</h3>
+                        <div class="value">{{ cluster.cluster_status|default('Unknown') }}</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Total Rows</h3>
+                        <div class="value" id="totalRowsValue">-</div>
+                    </div>
+                </div>
+
+                {% if cluster.primary_node %}
+                    <div class="success">
+                        <strong>✓ Primary Node:</strong> {{ cluster.primary_node }}
+                    </div>
+                {% else %}
+                    <div class="error">
+                        <strong>⚠ No Primary:</strong> Cluster has no primary node
+                    </div>
+                {% endif %}
+
+                <div class="section-title">Nodes</div>
+                <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Cluster ID</th>
+                            <th>Name</th>
+                            <th>Hostname</th>
+                            <th>IP Address</th>
+                            <th>Container</th>
+                            <th>Port</th>
+                            <th>Type</th>
+                            <th>Role</th>
+                            <th>Status</th>
+                            <th>Total Rows</th>
+                            <th>Gap (bytes)</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for node in cluster.nodes %}
+                            <tr>
+                                <td><strong>{{ node.db_cluster|default('-') }}</strong></td>
+                                <td><strong>{{ node.name|default('Unknown') }}</strong></td>
+                                <td>{{ node.hostname|default('-') }}</td>
+                                <td>{{ node.ip_address|default('-') }}</td>
+                                <td>{{ node.container|default('-') }}</td>
+                                <td>{{ node.port|default('-') }}</td>
+                                <td>{{ node.type|default('unknown') }}</td>
+                                <td>
+                                    <span class="status-badge {% if node.is_primary %}primary{% else %}standby{% endif %}">
+                                        {% if node.is_primary %}PRIMARY{% else %}STANDBY{% endif %}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="status-badge {% if node.connected %}healthy{% else %}unhealthy{% endif %}">
+                                        {% if node.connected %}Connected{% else %}Disconnected{% endif %}
+                                    </span>
+                                </td>
+                                <td style="text-align: right; font-weight: 600;" class="total-rows" data-hostname="{{ node.hostname|default(node.container) }}">
+                                    -
+                                </td>
+                                <td style="text-align: right; font-weight: 600;">
+                                    {% if node.is_primary %}
+                                        <span style="color: #999; font-style: italic;">Primary</span>
+                                    {% elif node.replication_gap %}
+                                        {% if node.replication_gap.gap_bytes >= 0 %}
+                                            {% if node.replication_gap.gap_bytes == 0 %}
+                                                <div style="display: inline-block; background-color: #d4edda; border-left: 4px solid #2ecc71; padding: 6px 10px; border-radius: 3px;">
+                                                    <div style="color: #2ecc71; font-weight: bold; font-size: 18px;">{{ node.replication_gap.gap_bytes }}</div>
+                                                    <div style="color: #666; font-size: 10px; margin-top: 2px;">bytes (Synced)</div>
+                                                </div>
+                                            {% elif node.replication_gap.gap_bytes < 1000 %}
+                                                <div style="display: inline-block; background-color: #fff3cd; border-left: 4px solid #f39c12; padding: 6px 10px; border-radius: 3px;">
+                                                    <div style="color: #f39c12; font-weight: bold; font-size: 18px;">{{ node.replication_gap.gap_bytes }}</div>
+                                                    <div style="color: #666; font-size: 10px; margin-top: 2px;">bytes (Minor lag)</div>
+                                                </div>
+                                            {% else %}
+                                                <div style="display: inline-block; background-color: #f8d7da; border-left: 4px solid #e74c3c; padding: 6px 10px; border-radius: 3px;">
+                                                    <div style="color: #e74c3c; font-weight: bold; font-size: 18px;">{{ node.replication_gap.gap_bytes }}</div>
+                                                    <div style="color: #666; font-size: 10px; margin-top: 2px;">bytes (Lag)</div>
+                                                </div>
+                                            {% endif %}
+                                        {% else %}
+                                            <span style="color: #f57c00;">Unavailable</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span style="color: #999;">N/A</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                                        {% if node.is_primary and node.type == 'backup' %}
+                                            <button class="button demote" onclick="demoteNode('{{ node.name }}')">Set to Backup</button>
+                                        {% elif node.type == 'backup' and not node.is_primary %}
+                                            <button class="button promote" onclick="promoteNode('{{ node.name }}')">Make Primary</button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                </div>
+
+                <div style="margin-top: 20px; font-size: 12px; color: #666;">
+                    <p><strong>Last Updated:</strong> {{ cluster.timestamp|default('Unknown') }}</p>
+                </div>
+            {% else %}
+                <div class="error">
+                    <strong>Error:</strong> Unable to connect to operationManagement API. Please check the cluster status.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        // Promote node to primary
+        async function promoteNode(nodeName) {
+            const button = event.target;
+            button.disabled = true;
+            button.textContent = 'Promoting...';
+            
+            try {
+                const response = await fetch(`/api/promote/${nodeName}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    button.disabled = false;
+                    button.textContent = 'Make Primary';
+                }
+            } catch (error) {
+                button.disabled = false;
+                button.textContent = 'Make Primary';
+            }
+        }
+        
+        // Demote node from primary to backup (set to standby)
+        async function demoteNode(nodeName) {
+            const button = event.target;
+            button.disabled = true;
+            button.textContent = 'Demoting...';
+            
+            try {
+                const response = await fetch(`/api/demote/${nodeName}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    button.disabled = false;
+                    button.textContent = 'Set to Backup';
+                }
+            } catch (error) {
+                button.disabled = false;
+                button.textContent = 'Set to Backup';
+            }
+        }
+        
+        // Auto-refresh timer management
+        let refreshTimer = null;
+        
+        function updateRefreshInterval(interval) {
+            // Clear existing timer
+            if (refreshTimer) {
+                clearTimeout(refreshTimer);
+            }
+            
+            // Save preference to localStorage
+            localStorage.setItem('refreshInterval', interval);
+            
+            // If interval is 0 (Never), don't set a new timer
+            if (interval === '0') {
+                console.log('Auto-refresh disabled');
+                return;
+            }
+            
+            // Set new refresh timer
+            const intervalMs = parseInt(interval);
+            console.log(`Auto-refresh set to ${intervalMs}ms`);
+            
+            refreshTimer = setTimeout(function() {
+                location.reload();
+            }, intervalMs);
+        }
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load saved preference from localStorage, default to 10 seconds
+            const savedInterval = localStorage.getItem('refreshInterval') || '10000';
+            
+            // Set the dropdown to the saved value
+            const dropdown = document.getElementById('refreshInterval');
+            if (dropdown) {
+                dropdown.value = savedInterval;
+                updateRefreshInterval(savedInterval);
+            }
+            
+            // Fetch database info to populate total rows
+            fetchDatabaseInfo();
+        });
+        
+        // Fetch database info from operationManagement API
+        async function fetchDatabaseInfo() {
+            try {
+                const response = await fetch('http://localhost:5001/api/operationmanagement/database-info');
+                const data = await response.json();
+                
+                // Update total rows in stat card
+                let totalRows = 0;
+                
+                // Calculate total rows from all hosts
+                if (data.hosts) {
+                    for (const hostname in data.hosts) {
+                        const host = data.hosts[hostname];
+                        if (host.tables) {
+                            for (const tableName in host.tables) {
+                                totalRows += host.tables[tableName];
+                            }
+                        }
+                    }
+                }
+                
+                // Update total rows stat card
+                const totalRowsElement = document.getElementById('totalRowsValue');
+                if (totalRowsElement) {
+                    totalRowsElement.textContent = totalRows.toLocaleString();
+                }
+                
+                // Update rows per host in table
+                const rowElements = document.querySelectorAll('.total-rows');
+                rowElements.forEach(element => {
+                    const hostname = element.getAttribute('data-hostname');
+                    
+                    if (data.hosts && data.hosts[hostname]) {
+                        const host = data.hosts[hostname];
+                        let hostRows = 0;
+                        
+                        if (host.tables) {
+                            for (const tableName in host.tables) {
+                                hostRows += host.tables[tableName];
+                            }
+                        }
+                        
+                        element.textContent = hostRows.toLocaleString();
+                        element.style.color = hostRows > 0 ? '#667eea' : '#999';
+                    }
+                });
+            } catch (error) {
+                console.log('Could not fetch database info (API may not be available yet):', error);
+            }
+        }
+    </script>
+</body>
+</html>

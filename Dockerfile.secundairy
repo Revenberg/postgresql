@@ -1,4 +1,4 @@
-# PostgreSQL Replica Dockerfile
+# PostgreSQL Standby Dockerfile
 FROM postgres:latest
 
 # Install required tools

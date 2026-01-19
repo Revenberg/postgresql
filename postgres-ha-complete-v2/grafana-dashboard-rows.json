@@ -1,0 +1,81 @@
+﻿{
+    "dashboard":  {
+                      "title":  "PostgreSQL Table Rows Count",
+                      "tags":  [
+                                   "postgres",
+                                   "tables",
+                                   "rows"
+                               ],
+                      "timezone":  "UTC",
+                      "panels":  [
+                                     {
+                                         "id":  1,
+                                         "gridPos":  {
+                                                         "y":  0,
+                                                         "w":  24,
+                                                         "x":  0,
+                                                         "h":  8
+                                                     },
+                                         "targets":  [
+                                                         {
+                                                             "legendFormat":  "{{ relname }} ({{ instance }})",
+                                                             "expr":  "pg_stat_user_tables_n_live_tup{job=\"postgres\"}",
+                                                             "refId":  "A"
+                                                         }
+                                                     ],
+                                         "type":  "table",
+                                         "options":  {
+                                                         "showHeader":  true,
+                                                         "sortBy":  [
+
+                                                                    ]
+                                                     },
+                                         "title":  "Rows per Table"
+                                     },
+                                     {
+                                         "id":  2,
+                                         "fieldConfig":  {
+                                                             "defaults":  {
+                                                                              "custom":  {
+                                                                                             "lineWidth":  2,
+                                                                                             "showPoints":  "never"
+                                                                                         }
+                                                                          }
+                                                         },
+                                         "gridPos":  {
+                                                         "y":  8,
+                                                         "w":  24,
+                                                         "x":  0,
+                                                         "h":  8
+                                                     },
+                                         "targets":  [
+                                                         {
+                                                             "legendFormat":  "{{ relname }} - {{ instance }}",
+                                                             "expr":  "pg_stat_user_tables_n_live_tup{relname=\"test_data\"}",
+                                                             "refId":  "A"
+                                                         }
+                                                     ],
+                                         "type":  "timeseries",
+                                         "title":  "test_data Table Rows Over Time"
+                                     },
+                                     {
+                                         "gridPos":  {
+                                                         "y":  16,
+                                                         "w":  24,
+                                                         "x":  0,
+                                                         "h":  8
+                                                     },
+                                         "title":  "Total Rows Inserted (per node)",
+                                         "id":  3,
+                                         "type":  "table",
+                                         "targets":  [
+                                                         {
+                                                             "legendFormat":  "{{ instance }} - Inserts",
+                                                             "expr":  "pg_stat_user_tables_n_tup_ins{relname=\"test_data\"}",
+                                                             "refId":  "A"
+                                                         }
+                                                     ]
+                                     }
+                                 ]
+                  }
+}

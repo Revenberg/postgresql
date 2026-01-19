@@ -1,0 +1,214 @@
+version: "3.9"
+
+services:
+  # Node 1 (Primary)
+  pg-node-1:
+    image: postgres:15
+    container_name: pg-node-1
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    volumes:
+      - postgres_node1_data:/var/lib/postgresql/data
+      - ./ha-nodes/primary/init-primary.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./entrypoint-primary.sh:/entrypoint-primary.sh:ro
+    environment:
+      POSTGRES_DB: appdb
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: apppass
+    networks:
+      - ha-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U appuser -d appdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    entrypoint: ["/bin/bash", "/entrypoint-primary.sh"]
+    labels:
+      - "pg-cluster=node"
+      - "pg-node=1"
+
+  etcd-primary:
+    image: quay.io/coreos/etcd:v3.5.0
+    container_name: etcd-primary
+    ports:
+      - "2379:2379"
+    restart: unless-stopped
+    volumes:
+      - etcd_data:/etcd-data
+    environment:
+      ETCD_DATA_DIR: /etcd-data
+      ETCD_LISTEN_CLIENT_URLS: http://0.0.0.0:2379
+      ETCD_ADVERTISE_CLIENT_URLS: http://etcd-primary:2379
+    networks:
+      - ha-network
+    healthcheck:
+      test: ["CMD", "etcdctl", "--endpoints=localhost:2379", "endpoint", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Node 2
+  pg-node-2:
+    image: postgres:15
+    container_name: pg-node-2
+    ports:
+      - "5433:5432"
+    restart: unless-stopped
+    volumes:
+      - postgres_node2_data:/var/lib/postgresql/data
+      - ./entrypoint-backup.sh:/entrypoint-backup.sh:ro
+    environment:
+      POSTGRES_DB: appdb
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: apppass
+    networks:
+      - ha-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U appuser -d appdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    entrypoint: ["/bin/bash", "/entrypoint-backup.sh"]
+    labels:
+      - "pg-cluster=node"
+      - "pg-node=2"
+    depends_on:
+      pg-node-1:
+        condition: service_healthy
+
+  # Node 3
+  pg-node-3:
+    image: postgres:15
+    container_name: pg-node-3
+    ports:
+      - "5434:5432"
+    restart: unless-stopped
+    volumes:
+      - postgres_node3_data:/var/lib/postgresql/data
+      - ./entrypoint-backup.sh:/entrypoint-backup.sh:ro
+    environment:
+      POSTGRES_DB: appdb
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: apppass
+    networks:
+      - ha-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U appuser -d appdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    entrypoint: ["/bin/bash", "/entrypoint-backup.sh"]
+    labels:
+      - "pg-cluster=node"
+      - "pg-node=3"
+    depends_on:
+      pg-node-1:
+        condition: service_healthy
+
+  # Node 4
+  pg-node-4:
+    image: postgres:15
+    container_name: pg-node-4
+    ports:
+      - "5440:5432"
+    restart: unless-stopped
+    volumes:
+      - postgres_node4_data:/var/lib/postgresql/data
+      - ./entrypoint-ro.sh:/entrypoint-ro.sh:ro
+    environment:
+      POSTGRES_DB: appdb
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: apppass
+    networks:
+      - ha-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U appuser -d appdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    entrypoint: ["/bin/bash", "/entrypoint-ro.sh"]
+    labels:
+      - "pg-cluster=node"
+      - "pg-node=4"
+    depends_on:
+      pg-node-1:
+        condition: service_healthy
+
+  # Node 5
+  pg-node-5:
+    image: postgres:15
+    container_name: pg-node-5
+    ports:
+      - "5441:5432"
+    restart: unless-stopped
+    volumes:
+      - postgres_node5_data:/var/lib/postgresql/data
+      - ./entrypoint-ro.sh:/entrypoint-ro.sh:ro
+    environment:
+      POSTGRES_DB: appdb
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: apppass
+    networks:
+      - ha-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U appuser -d appdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    entrypoint: ["/bin/bash", "/entrypoint-ro.sh"]
+    labels:
+      - "pg-cluster=node"
+      - "pg-node=5"
+    depends_on:
+      pg-node-1:
+        condition: service_healthy
+
+  # Node 6
+  pg-node-6:
+    image: postgres:15
+    container_name: pg-node-6
+    ports:
+      - "5442:5432"
+    restart: unless-stopped
+    volumes:
+      - postgres_node6_data:/var/lib/postgresql/data
+      - ./entrypoint-ro.sh:/entrypoint-ro.sh:ro
+    environment:
+      POSTGRES_DB: appdb
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: apppass
+    networks:
+      - ha-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U appuser -d appdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    entrypoint: ["/bin/bash", "/entrypoint-ro.sh"]
+    labels:
+      - "pg-cluster=node"
+      - "pg-node=6"
+    depends_on:
+      pg-node-1:
+        condition: service_healthy
+
+volumes:
+  postgres_node1_data:
+    driver: local
+  postgres_node2_data:
+    driver: local
+  postgres_node3_data:
+    driver: local
+  postgres_node4_data:
+    driver: local
+  postgres_node5_data:
+    driver: local
+  postgres_node6_data:
+    driver: local
+  etcd_data:
+    driver: local
+
+networks:
+  ha-network:
+    driver: bridge

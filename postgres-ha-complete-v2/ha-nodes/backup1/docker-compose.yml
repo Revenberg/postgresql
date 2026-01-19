@@ -1,0 +1,44 @@
+version: "3.9"
+
+services:
+  postgres-backup1:
+    image: postgres:15
+    container_name: pg-backup1
+    ports:
+      - "5433:5432"
+    restart: unless-stopped
+    volumes:
+      - postgres_backup1_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: appdb
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: apppass
+    networks:
+      - ha-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U appuser -d appdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    entrypoint: |
+      bash -c '
+      echo "Waiting for primary..."
+      until PGPASSWORD=replpass psql -h pg-primary -U replicator -d appdb -c "SELECT 1" >/dev/null 2>&1; do
+        sleep 2
+      done
+      echo "Primary ready - creating standby..."
+      rm -rf /var/lib/postgresql/data/*
+      PGPASSWORD=replpass pg_basebackup -h pg-primary -D /var/lib/postgresql/data -U replicator -v -P -R
+      exec docker-entrypoint.sh postgres -c hot_standby=on -c listen_addresses="*"
+      '
+    labels:
+      - "pg-cluster=backup"
+      - "pg-node=2"
+
+volumes:
+  postgres_backup1_data:
+    driver: local
+
+networks:
+  ha-network:
+    driver: bridge

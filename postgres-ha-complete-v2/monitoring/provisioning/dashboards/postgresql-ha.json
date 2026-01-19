@@ -1,0 +1,53 @@
+{
+  "dashboard": {
+    "title": "PostgreSQL HA Cluster",
+    "tags": ["postgres", "ha", "cluster"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "title": "Replication Status",
+        "type": "stat",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+        "targets": [
+          {
+            "expr": "pg_replication_is_replica",
+            "legendFormat": "{{instance}}"
+          }
+        ]
+      },
+      {
+        "title": "Replication Lag (seconds)",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+        "targets": [
+          {
+            "expr": "pg_replication_lag_seconds",
+            "legendFormat": "{{instance}}"
+          }
+        ]
+      },
+      {
+        "title": "Active Connections",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+        "targets": [
+          {
+            "expr": "pg_stat_activity_count",
+            "legendFormat": "{{instance}}"
+          }
+        ]
+      },
+      {
+        "title": "Database Size",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+        "targets": [
+          {
+            "expr": "pg_database_size_bytes",
+            "legendFormat": "{{datname}} ({{instance}})"
+          }
+        ]
+      }
+    ]
+  }
+}

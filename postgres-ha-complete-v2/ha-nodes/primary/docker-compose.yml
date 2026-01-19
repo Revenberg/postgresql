@@ -1,0 +1,62 @@
+version: "3.9"
+
+services:
+  postgres-primary:
+    image: postgres:15
+    container_name: pg-primary
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    volumes:
+      - postgres_primary_data:/var/lib/postgresql/data
+      - ./init-primary.sql:/docker-entrypoint-initdb.d/init.sql
+    environment:
+      POSTGRES_DB: appdb
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: apppass
+    command:
+      - "postgres"
+      - "-c"
+      - "wal_level=replica"
+      - "-c"
+      - "max_wal_senders=10"
+      - "-c"
+      - "max_replication_slots=10"
+      - "-c"
+      - "hot_standby=on"
+      - "-c"
+      - "listen_addresses=*"
+    networks:
+      - ha-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U appuser -d appdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    labels:
+      - "pg-cluster=primary"
+      - "pg-node=1"
+
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.9
+    container_name: etcd-primary
+    ports:
+      - "2379:2379"
+    environment:
+      ETCD_LISTEN_CLIENT_URLS: http://0.0.0.0:2379
+      ETCD_ADVERTISE_CLIENT_URLS: http://etcd-primary:2379
+      ETCD_NAME: etcd-primary
+    networks:
+      - ha-network
+    volumes:
+      - etcd_data:/etcd-data
+
+volumes:
+  postgres_primary_data:
+    driver: local
+  etcd_data:
+    driver: local
+
+networks:
+  ha-network:
+    driver: bridge

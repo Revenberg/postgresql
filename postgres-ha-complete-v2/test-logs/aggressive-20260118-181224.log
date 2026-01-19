@@ -1,0 +1,3 @@
+[18:12:24] [INFO] Test started: 30 minutes, failover every 3 min, report every 1 min
+[18:12:24] [INFO] Logs: test-logs/aggressive-20260118-181224.log
+[18:12:24] [INFO] Data: test-logs/rowcounts-20260118-181224.csv

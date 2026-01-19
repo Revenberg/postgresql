@@ -1,0 +1,79 @@
+version: "3.9"
+
+services:
+  # Writer container - continuous inserts to primary
+  pg-writer:
+    image: postgres:15
+    container_name: pg-writer
+    environment:
+      PGPASSWORD: apppass
+      PRIMARY_HOST: pg-primary
+      PRIMARY_PORT: 5432
+    networks:
+      - ha-network
+    volumes:
+      - ./writer.sh:/writer.sh:ro
+    entrypoint: ["/bin/bash", "/writer.sh"]
+
+  # Reader container - continuous reads from all RO nodes
+  pg-reader:
+    image: postgres:15
+    container_name: pg-reader
+    environment:
+      PGPASSWORD: apppass
+    networks:
+      - ha-network
+    volumes:
+      - ./reader.sh:/reader.sh:ro
+    entrypoint: ["/bin/bash", "/reader.sh"]
+
+  # Validator container - checks consistency across all nodes
+  pg-validator:
+    image: postgres:15
+    container_name: pg-validator
+    environment:
+      PGPASSWORD: apppass
+    networks:
+      - ha-network
+    volumes:
+      - ./validator.sh:/validator.sh:ro
+    entrypoint: ["/bin/bash", "/validator.sh"]
+
+  # Failover simulation container
+  pg-failover-sim:
+    image: postgres:15
+    container_name: pg-failover-sim
+    environment:
+      PGPASSWORD: apppass
+    networks:
+      - ha-network
+    entrypoint: |
+      bash -c '
+      echo "Failover simulator ready. Waiting for primary..."
+      while ! psql -h pg-primary -U appuser -d appdb -c "SELECT 1" 2>/dev/null; do
+        sleep 2
+      done
+      
+      echo "System ready for failover testing"
+      sleep infinity
+      '
+      - postgres-primary
+
+volumes:
+  postgres_primary_data:
+    external: true
+  postgres_backup1_data:
+    external: true
+  postgres_backup2_data:
+    external: true
+  postgres_ro1_data:
+    external: true
+  postgres_ro2_data:
+    external: true
+  postgres_ro3_data:
+    external: true
+
+networks:
+  ha-network:
+    external: true
+    name: postgres-ha-complete-v2_ha-network

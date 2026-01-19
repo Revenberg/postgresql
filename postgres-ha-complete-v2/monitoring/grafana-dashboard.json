@@ -1,0 +1,86 @@
+{
+  "dashboard": {
+    "uid": "pg-ha-cluster",
+    "title": "PostgreSQL HA Cluster",
+    "tags": ["postgres", "ha", "cluster"],
+    "timezone": "browser",
+    "schemaVersion": 40,
+    "version": 0,
+    "refresh": "10s",
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Node Status",
+        "type": "stat",
+        "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0},
+        "targets": [
+          {
+            "expr": "pg_up",
+            "legendFormat": "{{instance}}"
+          }
+        ],
+        "options": {
+          "graphMode": "area",
+          "orientation": "auto",
+          "reduceOptions": {
+            "values": false,
+            "calcs": ["lastNotNull"]
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "Replication Status",
+        "type": "stat",
+        "gridPos": {"h": 8, "w": 6, "x": 6, "y": 0},
+        "targets": [
+          {
+            "expr": "pg_replication_is_replica",
+            "legendFormat": "{{instance}}"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Database Size (MB)",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+        "targets": [
+          {
+            "expr": "pg_database_size_bytes / 1024 / 1024",
+            "legendFormat": "{{datname}} ({{instance}})"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Active Connections",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+        "targets": [
+          {
+            "expr": "pg_stat_activity_count",
+            "legendFormat": "{{instance}}"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Replication Lag (seconds)",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+        "targets": [
+          {
+            "expr": "pg_replication_lag_seconds",
+            "legendFormat": "{{instance}}"
+          }
+        ]
+      }
+    ]
+  },
+  "overwrite": true
+}

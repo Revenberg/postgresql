@@ -1,0 +1,17 @@
+﻿pg_table_row_count:
+  query: "SELECT schemaname, tablename, n_live_tup FROM pg_stat_user_tables WHERE tablename = 'test_data'"
+  metrics:
+    - schemaname:
+        usage: LABEL
+    - tablename:
+        usage: LABEL  
+    - n_live_tup:
+        usage: GAUGE
+        description: "Number of live rows in table"
+
+test_data_count:
+  query: "SELECT COUNT(*) as row_count FROM public.test_data"
+  metrics:
+    - row_count:
+        usage: GAUGE
+        description: "Total rows in test_data table"

@@ -2,8 +2,8 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install psycopg2
-RUN pip install --no-cache-dir psycopg2-binary
+# Install dependencies
+RUN pip install --no-cache-dir psycopg2-binary requests
 
 # Copy test data generator
 COPY test_data_generator.py .

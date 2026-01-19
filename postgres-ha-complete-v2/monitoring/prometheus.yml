@@ -1,0 +1,44 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'postgres-node-1'
+    static_configs:
+      - targets: ['exporter-node-1:9187']
+        labels:
+          instance: 'pg-node-1'
+
+  - job_name: 'postgres-node-2'
+    static_configs:
+      - targets: ['exporter-node-2:9187']
+        labels:
+          instance: 'pg-node-2'
+
+  - job_name: 'postgres-node-3'
+    static_configs:
+      - targets: ['exporter-node-3:9187']
+        labels:
+          instance: 'pg-node-3'
+
+  - job_name: 'postgres-node-4'
+    static_configs:
+      - targets: ['exporter-node-4:9187']
+        labels:
+          instance: 'pg-node-4'
+
+  - job_name: 'postgres-node-5'
+    static_configs:
+      - targets: ['exporter-node-5:9187']
+        labels:
+          instance: 'pg-node-5'
+
+  - job_name: 'postgres-node-6'
+    static_configs:
+      - targets: ['exporter-node-6:9187']
+        labels:
+          instance: 'pg-node-6'

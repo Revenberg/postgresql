@@ -1,0 +1,8 @@
+[22:26:20] [INFO] Read Load Generator Started
+[22:26:21] [INFO] Target: pg-node-4, pg-node-5, pg-node-6
+[22:26:21] [INFO] 
+[22:26:21] [INFO] Starting read workload on pg-node-4
+[22:26:23] [INFO] Starting read workload on pg-node-5
+[22:26:24] [INFO] Starting read workload on pg-node-6
+[22:26:27] [INFO] Read workload started on all 3 read-only nodes
+[22:26:27] [INFO] 
